@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DesignTokens",
+  "type": "object",
+  "required": ["colors", "typography", "spacing", "meta"],
+  "additionalProperties": false,
+  "properties": {
+    "colors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["background", "surface", "primary", "onPrimary", "textPrimary", "textSecondary", "border"],
+      "properties": {
+        "background": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
+        "surface": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
+        "primary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
+        "onPrimary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
+        "textPrimary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
+        "textSecondary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
+        "border": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" }
+      }
+    },
+    "typography": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fontFamily", "baseFontSize", "scaleRatio", "sizes"],
+      "properties": {
+        "fontFamily": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "baseFontSize": { "type": "number", "minimum": 8, "maximum": 40 },
+        "scaleRatio": { "type": "number", "minimum": 1.0, "maximum": 2.0 },
+        "sizes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["xs", "sm", "md", "lg", "xl", "h3", "h2", "h1"],
+          "properties": {
+            "xs": { "type": "number" },
+            "sm": { "type": "number" },
+            "md": { "type": "number" },
+            "lg": { "type": "number" },
+            "xl": { "type": "number" },
+            "h3": { "type": "number" },
+            "h2": { "type": "number" },
+            "h1": { "type": "number" }
+          }
+        }
+      }
+    },
+    "spacing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseUnit", "scale"],
+      "properties": {
+        "baseUnit": { "type": "number", "minimum": 1, "maximum": 20 },
+        "scale": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["xs", "sm", "md", "lg", "xl"],
+          "properties": {
+            "xs": { "type": "number" },
+            "sm": { "type": "number" },
+            "md": { "type": "number" },
+            "lg": { "type": "number" },
+            "xl": { "type": "number" }
+          }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["generatedBy", "method", "timestamp"],
+      "properties": {
+        "generatedBy": { "type": "string" },
+        "method": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    }
+  }
+}
