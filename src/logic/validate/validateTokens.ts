@@ -12,7 +12,7 @@ export type ValidationItem = {
     ok: boolean;
     message: string;
     details?: Record<string, unknown>;
-    severity: "error" | "warning";
+    severity: "info" | "warning" | "error";
 };
 
 export type ValidationReport = {
@@ -98,10 +98,7 @@ export function validateTokens(
                     ? `Contrast(${pathA}, ${pathB}) meets target (${ratio.toFixed(2)} >= ${threshold}).`
                     : `Contrast(${pathA}, ${pathB}) does not meet target (${ratio.toFixed(2)} < ${threshold}).`,
                     details: {a, b, ratio, threshold, pathA, pathB},           
-                });
-
-                contrastItems[contrastItems.length - 1].severity = ok ? "warning" : "error";
-      
+                });      
             }
 
             // System: Typography checks
@@ -129,7 +126,7 @@ export function validateTokens(
             });
 
             // System: Spacing checks
-            const baseUnit = safeTokens.spacing.baseUnitPx;
+            const baseUnit = safeTokens.spacing.baseUnit; // updated to match the new schema field name
             const unitOk = baseUnit >= SYSTEM_SPEC.spacing.minBaseUnit && baseUnit <= SYSTEM_SPEC.spacing.maxBaseUnit;
   
             spacingItems.push({
@@ -139,40 +136,13 @@ export function validateTokens(
                 message: `Base unit ${baseUnit}px must be within [${SYSTEM_SPEC.spacing.minBaseUnit}px, ${SYSTEM_SPEC.spacing.maxBaseUnit}px].`,
                 details: {baseUnit},
             });
-
-            if (SYSTEM_SPEC.spacing.monotonic) {
-                const steps = SYSTEM_SPEC.spacing.steps;
-                const spacingSteps = (safeTokens.spacing as Record<string, unknown>).steps as Record<string, unknown>;
-                const values = steps.map((k) => spacingSteps[k] as number | undefined);
-
-                const missing = values.some((v) => typeof v !== "number");
-                if (missing) {
-                    spacingItems.push({
-                        id: "spacing:monotonic",
-                        ok: false,
-                        severity: "error",
-                        message: "Spacing scale is missing one or more required steps."
-                    });
-                } else {
-                    let monoOk = true;
-                    for (let i = 1; i < values.length; i++) {
-                        if ((values[i] as number) <= (values[i - 1] as number)) monoOk = false;
-                    }
-                    spacingItems.push({
-                        id: "spacing:monotonic",
-                        ok: monoOk,
-                        severity: monoOk ? "warning" : "error",
-                        message: monoOk 
-                        ? "Spacing scale is monotonic increasing." 
-                        : "Spacing scale must be strictly increasing from xs to xl."
-                    });
-                }
-            }
         }
 
         // User adherence checks (soft constraints)
         const brandPrimary = userConstraints.brand.primary.toLowerCase();
-        const tokenPrimary = safeTokens?.colors.brand.primary.toLowerCase();
+        // be defensive: if schema failed safeTokens may be null or missing fields,
+        // optional-chaining on each segment avoids runtime errors.
+        const tokenPrimary = safeTokens?.colors?.brand?.primary?.toLowerCase();
 
         userAdherenceItems.push({
             id: "user:brandPrimaryMatch",

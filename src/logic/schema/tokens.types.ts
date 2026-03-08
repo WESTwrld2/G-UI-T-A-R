@@ -21,7 +21,7 @@ export type DesignTokens = {
     scaleRatio: number;
   };
   spacing: {
-    baseUnitPx: number;
+    baseUnit: number;
   };
   meta: {
     generatedBy: string;
