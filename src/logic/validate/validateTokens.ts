@@ -3,13 +3,16 @@ import addFormats from "ajv-formats";
 import tokensSchema from "@/logic/schema/tokens.schema.json";
 import type {DesignTokens} from "@/logic/schema/tokens.types";
 import type {UserConstraints} from "@/logic/schema/userConstraints.zod";
-import {contrastRatio} from "@/logic/validate/color";import {SYSTEM_SPEC, contrastThreshold} from "@/logic/constraints/systemSpec"; 
+import {contrastRatio} from "@/logic/validate/color";
+import {getByPath} from "@/logic/validate/path";
+import {SYSTEM_SPEC, contrastThreshold} from "@/logic/constraints/systemSpec"; 
 
 export type ValidationItem = {
     id: string;
     ok: boolean;
     message: string;
     details?: Record<string, unknown>;
+    severity: "error" | "warning";
 };
 
 export type ValidationReport = {
@@ -28,6 +31,7 @@ export type ValidationReport = {
     summary: {
         systemPass: boolean;
         systemFailures: number;
+        repairable: boolean; // Indicates if failures are potentially repairable based on their IDs (e.g., contrast, typography, spacing issues might be repairable, while schema errors are not)
     };
 };
 
@@ -42,6 +46,15 @@ function ajvErrorstoSimple(errors: ErrorObject[] | null | undefined) {
         path: err.instancePath || err.schemaPath,
         message: err.message ?? "Schema error",
     }));
+}
+
+function isRepairableSystemFailure(item: ValidationItem): boolean {
+  // Keep conservative: contrast/typography/spacing are repairable
+  return (
+    item.id.startsWith("contrast:") ||
+    item.id.startsWith("typography:") ||
+    item.id.startsWith("spacing:")
+  );
 }
 
 export function validateTokens(
@@ -60,68 +73,84 @@ export function validateTokens(
             // System-level validations
             const threshold = contrastThreshold(userConstraints.accessibilityTarget);
 
-            for (const [colorAKey, colorBKey] of SYSTEM_SPEC.requiredContrastPairs) {
-                const colorA = (safeTokens.colors as Record<string, unknown>)[colorAKey] as string | undefined; // Type assertion since we know the structure from the schema
-                const colorB = (safeTokens.colors as Record<string, unknown>)[colorBKey] as string | undefined;
+            for (const [pathA, pathB] of SYSTEM_SPEC.requiredContrastPairs) {
+                const a = getByPath(safeTokens, pathA);
+                const b = getByPath(safeTokens, pathB);
 
-                if (!colorA || !colorB) {
+                if (typeof a !== "string" || typeof b !== "string") {
                     contrastItems.push({
-                        id: `contrast:${colorAKey}-${colorBKey}`,
+                        id: `contrast:${pathA}-${pathB}`,
                         ok: false,
-                        message: `Missing color(s) for contrast pair (${colorAKey}, ${colorBKey}) `,
+                        severity: "error",
+                        message: `Missing color(s) for contrast pair (${pathA}, ${pathB}) `,
                     });
                     continue;
                 }
 
-                const ratio = contrastRatio(colorA, colorB);
+                const ratio = contrastRatio(a, b);
                 const ok = ratio >= threshold;
 
                 contrastItems.push({
-                    id: `contrast:${colorAKey}-${colorBKey}`,
+                    id: `contrast:${pathA}-${pathB}`,
                     ok, 
+                    severity: ok ? "warning" : "error", // failing contrast is error, passing contrast is a warning (since it may still be close to the threshold and worth reviewing)
                     message: ok 
-                    ? `Contrast(${colorAKey}, ${colorBKey}) meets target (${ratio.toFixed(2)} >= ${threshold}).`
-                    : `Contrast(${colorAKey}, ${colorBKey}) does not meet target (${ratio.toFixed(2)} < ${threshold}).`,
-                    details: {colorA, colorB, ratio, threshold, colorAKey, colorBKey},           
+                    ? `Contrast(${pathA}, ${pathB}) meets target (${ratio.toFixed(2)} >= ${threshold}).`
+                    : `Contrast(${pathA}, ${pathB}) does not meet target (${ratio.toFixed(2)} < ${threshold}).`,
+                    details: {a, b, ratio, threshold, pathA, pathB},           
                 });
+
+                contrastItems[contrastItems.length - 1].severity = ok ? "warning" : "error";
+      
             }
 
             // System: Typography checks
             const base = safeTokens.typography.baseFontSize;
             const ratio = safeTokens.typography.scaleRatio;
 
+            const baseOk = base >= SYSTEM_SPEC.typography.minBaseFontSize && base <= SYSTEM_SPEC.typography.maxBaseFontSize;
+ 
             typographyItems.push({
                 id: "typography:baseFontSize",
-                ok: base >= SYSTEM_SPEC.typography.minBaseFontSize && base <= SYSTEM_SPEC.typography.maxBaseFontSize,
+                ok: baseOk,
+                severity: baseOk ? "warning" : "error",
                 message: `Base font size ${base}px must be within [${SYSTEM_SPEC.typography.minBaseFontSize}px, ${SYSTEM_SPEC.typography.maxBaseFontSize}px].`,
                 details: {base},
             });
 
+            const ratioOk = ratio >= SYSTEM_SPEC.typography.minScaleRatio && ratio <= SYSTEM_SPEC.typography.maxScaleRatio;
+  
             typographyItems.push({
                 id: "typography:scaleRatio",
-                ok: ratio >= SYSTEM_SPEC.typography.minScaleRatio && ratio <= SYSTEM_SPEC.typography.maxScaleRatio,
+                ok: ratioOk,
+                severity: ratioOk ? "warning" : "error",
                 message: `Scale ratio ${ratio} must be within [${SYSTEM_SPEC.typography.minScaleRatio}, ${SYSTEM_SPEC.typography.maxScaleRatio}].`,
                 details: {ratio},
             });
 
             // System: Spacing checks
-            const baseUnit = safeTokens.spacing.baseUnit;
+            const baseUnit = safeTokens.spacing.baseUnitPx;
+            const unitOk = baseUnit >= SYSTEM_SPEC.spacing.minBaseUnit && baseUnit <= SYSTEM_SPEC.spacing.maxBaseUnit;
+  
             spacingItems.push({
                 id: "spacing:baseUnit",
-                ok: baseUnit >= SYSTEM_SPEC.spacing.minBaseUnit && baseUnit <= SYSTEM_SPEC.spacing.maxBaseUnit,
+                ok: unitOk,
+                severity: unitOk ? "warning" : "error",
                 message: `Base unit ${baseUnit}px must be within [${SYSTEM_SPEC.spacing.minBaseUnit}px, ${SYSTEM_SPEC.spacing.maxBaseUnit}px].`,
                 details: {baseUnit},
             });
 
             if (SYSTEM_SPEC.spacing.monotonic) {
                 const steps = SYSTEM_SPEC.spacing.steps;
-                const values = steps.map((k) => (safeTokens.spacing.scale as Record<string, unknown>)[k] as number | undefined);
+                const spacingSteps = (safeTokens.spacing as Record<string, unknown>).steps as Record<string, unknown>;
+                const values = steps.map((k) => spacingSteps[k] as number | undefined);
 
                 const missing = values.some((v) => typeof v !== "number");
                 if (missing) {
                     spacingItems.push({
                         id: "spacing:monotonic",
                         ok: false,
+                        severity: "error",
                         message: "Spacing scale is missing one or more required steps."
                     });
                 } else {
@@ -132,6 +161,7 @@ export function validateTokens(
                     spacingItems.push({
                         id: "spacing:monotonic",
                         ok: monoOk,
+                        severity: monoOk ? "warning" : "error",
                         message: monoOk 
                         ? "Spacing scale is monotonic increasing." 
                         : "Spacing scale must be strictly increasing from xs to xl."
@@ -142,27 +172,30 @@ export function validateTokens(
 
         // User adherence checks (soft constraints)
         const brandPrimary = userConstraints.brand.primary.toLowerCase();
-        const tokenPrimary = safeTokens?.colors.primary.toLowerCase();
+        const tokenPrimary = safeTokens?.colors.brand.primary.toLowerCase();
 
         userAdherenceItems.push({
             id: "user:brandPrimaryMatch",
             ok: tokenPrimary === brandPrimary,
+            severity: tokenPrimary === brandPrimary ? "warning" : "error", // exact match is a warning (good but not critical), mismatch is an error (important for brand consistency)
             message: 
                 tokenPrimary === brandPrimary
                 ? "Primary token color matches user brand primary color exactly."
-                : "Primary token does not exactly match the user brand primary color. This will be treated as a soft preference",
+                : "Primary token does not exactly match the user brand primary color input. This will be treated as a soft preference",
             details: {brandPrimary, tokenPrimary},
         });
 
         userAdherenceItems.push({
             id: "user:themeMode",
             ok: true,
+            severity: "warning", // User theme mode preference is noted but does not affect token validation, so it's a warning for downstream components to consider.
             message: `User theme mode preference is ${userConstraints.themeMode}. This is noted for downstream use in the preview component but does not affect token validation at this stage.`,
             details: {themeMode: userConstraints.themeMode},
         });
 
         const allSystemItems = [...contrastItems, ...typographyItems, ...spacingItems];
         const systemFailures = allSystemItems.filter(item => !item.ok).length;
+        const repairable = schemaOk && allSystemItems.filter(item => !item.ok).every(isRepairableSystemFailure);
 
     return {
         schema: {
@@ -180,6 +213,7 @@ export function validateTokens(
         summary: {
             systemPass: !!schemaOk && systemFailures === 0,
             systemFailures,
+            repairable,
         },
     };
 }

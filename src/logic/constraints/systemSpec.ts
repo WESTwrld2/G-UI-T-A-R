@@ -18,7 +18,7 @@ export type SystemConstraintSpec = {
     AA: { normalText: number };
     AAA: { normalText: number };
   };
-  requiredContrastPairs: Array<[colorKeyA: string, colorKeyB: string]>;
+  requiredContrastPairs: Array<[pathA: string, pathB: string]>;
 };
 
 export const SYSTEM_SPEC: SystemConstraintSpec = {
@@ -41,10 +41,10 @@ export const SYSTEM_SPEC: SystemConstraintSpec = {
   
   // These are the color pairs that must meet the specified contrast ratios based on the user's accessibility target. More might be added when the preview component is built out and we see which pairs are most critical to check.
   requiredContrastPairs: [
-    ["textPrimary", "background"],
-    ["textSecondary", "background"],
-    ["textPrimary", "surface"],
-    ["onPrimary", "primary"],
+    ["colors.neutral.textPrimary", "colors.neutral.background"],
+    ["colors.neutral.textSecondary", "colors.neutral.background"],
+    ["colors.neutral.textPrimary", "colors.neutral.surface"],
+    ["colors.brand.onPrimary", "colors.brand.primary"],
   ],
 };
 
