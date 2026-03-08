@@ -93,7 +93,7 @@ export function validateTokens(
                 contrastItems.push({
                     id: `contrast:${pathA}-${pathB}`,
                     ok, 
-                    severity: ok ? "warning" : "error", // failing contrast is error, passing contrast is a warning (since it may still be close to the threshold and worth reviewing)
+                    severity: ok ? "info" : "error", // failing contrast is error
                     message: ok 
                     ? `Contrast(${pathA}, ${pathB}) meets target (${ratio.toFixed(2)} >= ${threshold}).`
                     : `Contrast(${pathA}, ${pathB}) does not meet target (${ratio.toFixed(2)} < ${threshold}).`,
@@ -110,7 +110,7 @@ export function validateTokens(
             typographyItems.push({
                 id: "typography:baseFontSize",
                 ok: baseOk,
-                severity: baseOk ? "warning" : "error",
+                severity: baseOk ? "info" : "error",
                 message: `Base font size ${base}px must be within [${SYSTEM_SPEC.typography.minBaseFontSize}px, ${SYSTEM_SPEC.typography.maxBaseFontSize}px].`,
                 details: {base},
             });
@@ -120,7 +120,7 @@ export function validateTokens(
             typographyItems.push({
                 id: "typography:scaleRatio",
                 ok: ratioOk,
-                severity: ratioOk ? "warning" : "error",
+                severity: ratioOk ? "info" : "error",
                 message: `Scale ratio ${ratio} must be within [${SYSTEM_SPEC.typography.minScaleRatio}, ${SYSTEM_SPEC.typography.maxScaleRatio}].`,
                 details: {ratio},
             });
@@ -132,7 +132,7 @@ export function validateTokens(
             spacingItems.push({
                 id: "spacing:baseUnit",
                 ok: unitOk,
-                severity: unitOk ? "warning" : "error",
+                severity: unitOk ? "info" : "error",
                 message: `Base unit ${baseUnit}px must be within [${SYSTEM_SPEC.spacing.minBaseUnit}px, ${SYSTEM_SPEC.spacing.maxBaseUnit}px].`,
                 details: {baseUnit},
             });
@@ -147,7 +147,7 @@ export function validateTokens(
         userAdherenceItems.push({
             id: "user:brandPrimaryMatch",
             ok: tokenPrimary === brandPrimary,
-            severity: tokenPrimary === brandPrimary ? "warning" : "error", // exact match is a warning (good but not critical), mismatch is an error (important for brand consistency)
+            severity: tokenPrimary === brandPrimary ? "info" : "warning", // exact match is a warning (good but not critical), mismatch is an error (important for brand consistency)
             message: 
                 tokenPrimary === brandPrimary
                 ? "Primary token color matches user brand primary color exactly."

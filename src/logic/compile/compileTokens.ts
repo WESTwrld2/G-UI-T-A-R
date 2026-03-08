@@ -18,20 +18,20 @@ function deriveTypography(base: number, ratio: number) {
         md,
         lg: round2(md * ratio),
         xl: round2(md * ratio * ratio),
-        h3: round2(md * ratio * ratio),
-        h2: round2(md * ratio * ratio * ratio),
-        h1: round2(md * ratio * ratio * ratio * ratio),
+        h3: round2(md * ratio * ratio * ratio),
+        h2: round2(md * ratio * ratio * ratio * ratio),
+        h1: round2(md * ratio * ratio * ratio * ratio * ratio),
     };
 }// This is a simple modular scale with 5 steps, but it could be swapped out for a more complex scale or a custom set of sizes if desired.
 
 function deriveSpacing(baseUnit: number, densityMultiplier: number) {
     const stepSize = baseUnit * densityMultiplier;
     return {
-        xs: round2(baseUnit),
-        sm: round2(baseUnit + stepSize),
-        md: round2(baseUnit + stepSize * 2),
-        lg: round2(baseUnit + stepSize * 3),
-        xl: round2(baseUnit + stepSize * 4),
+        xs: round2(stepSize),
+        sm: round2(stepSize * 2),
+        md: round2(stepSize * 3),
+        lg: round2(stepSize * 4),
+        xl: round2(stepSize * 6),
     };
 }
 
@@ -101,12 +101,12 @@ export function compileTokens(
     // Generate CSS variables
     const cssVars: Record<string, string> = {
         "--color-brand-primary": compiled.colors.brand.primary,
-        "--color-brand-onPrimary": compiled.colors.brand.onPrimary,
+        "--color-brand-on-primary": compiled.colors.brand.onPrimary,
 
         "--color-neutral-background": compiled.colors.neutral.background,
         "--color-neutral-surface": compiled.colors.neutral.surface,
-        "--color-neutral-textPrimary": compiled.colors.neutral.textPrimary,
-        "--color-neutral-textSecondary": compiled.colors.neutral.textSecondary,
+        "--color-neutral-text-primary": compiled.colors.neutral.textPrimary,
+        "--color-neutral-text-secondary": compiled.colors.neutral.textSecondary,
         "--color-neutral-border": compiled.colors.neutral.border,
 
         "--font-family-base": compiled.typography.fontFamily,
@@ -137,18 +137,18 @@ export function compileTokens(
                 colors: {
                     brand: {
                         primary: "var(--color-brand-primary)",
-                        onPrimary: "var(--color-brand-onPrimary)",
+                        onPrimary: "var(--color-brand-on-primary)",
                     },
                     neutral: {
                         background: "var(--color-neutral-background)",
                         surface: "var(--color-neutral-surface)",
-                        textPrimary: "var(--color-neutral-textPrimary)",
-                        textSecondary: "var(--color-neutral-textSecondary)",
+                        textPrimary: "var(--color-neutral-text-primary)",
+                        textSecondary: "var(--color-neutral-text-secondary)",
                         border: "var(--color-neutral-border)",
                     }
                 },
                 fontFamily: {
-                    base: "var(--font-family-base)",
+                    base: ["var(--font-family-base)"],
                 },
                 fontSize: {
                     xs: "var(--font-size-xs)",
