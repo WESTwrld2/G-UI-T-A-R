@@ -6,12 +6,20 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+function parseModelJson(content: string) {
+  const raw = content.trim();
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = fenced?.[1] ?? raw;
+  return JSON.parse(candidate);
+}
+
 export async function generateWithOpenAI(userConstraints: UserConstraints) {
   const prompt = buildPrompt(userConstraints);
 
   const response = await client.chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0.6,
+    response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
@@ -31,7 +39,7 @@ export async function generateWithOpenAI(userConstraints: UserConstraints) {
   }
 
   try {
-    return JSON.parse(content);
+    return parseModelJson(content);
   } catch {
     throw new Error("LLM output was not valid JSON");
   }

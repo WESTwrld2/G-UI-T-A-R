@@ -140,9 +140,11 @@ export function validateTokens(
 
         // User adherence checks (soft constraints)
         const brandPrimary = userConstraints.brand.primary.toLowerCase();
+        const brandSecondary = userConstraints.brand.secondary?.toLowerCase();
         // be defensive: if schema failed safeTokens may be null or missing fields,
         // optional-chaining on each segment avoids runtime errors.
         const tokenPrimary = safeTokens?.colors?.brand?.primary?.toLowerCase();
+        const tokenSecondary = safeTokens?.colors?.brand?.secondary?.toLowerCase();
 
         userAdherenceItems.push({
             id: "user:brandPrimaryMatch",
@@ -154,6 +156,19 @@ export function validateTokens(
                 : "Primary token does not exactly match the user brand primary color input. This will be treated as a soft preference",
             details: {brandPrimary, tokenPrimary},
         });
+
+        if (brandSecondary) {
+            userAdherenceItems.push({
+                id: "user:brandSecondaryMatch",
+                ok: tokenSecondary === brandSecondary,
+                severity: tokenSecondary === brandSecondary ? "info" : "warning",
+                message:
+                    tokenSecondary === brandSecondary
+                    ? "Secondary token color matches user brand secondary color exactly."
+                    : "Secondary token does not exactly match the user brand secondary color input. This will be treated as a soft preference",
+                details: {brandSecondary, tokenSecondary},
+            });
+        }
 
         userAdherenceItems.push({
             id: "user:themeMode",

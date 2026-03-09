@@ -11,11 +11,13 @@
       "properties": {
         "brand": {
           "type": "object",
-          "required": ["primary", "onPrimary"],
+          "required": ["primary", "secondary", "onPrimary", "onSecondary"],
           "additionalProperties": false,
           "properties": {
             "primary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
-            "onPrimary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" }
+            "secondary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
+            "onPrimary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" },
+            "onSecondary": { "type": "string", "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$" }
           }
         },
         "neutral": {

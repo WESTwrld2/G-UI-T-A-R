@@ -1,29 +1,49 @@
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 
 export function buildPrompt(user: UserConstraints) {
+  const styleTags = user.styleTags?.length ? user.styleTags.join(", ") : "Not provided";
+  const secondary = user.brand.secondary ?? "Not provided";
+  const neutralPreference = user.brand.neutralPreference ?? "Not provided";
+  const fontStyle = user.typography.fontFamily?.style ?? "sans-serif";
+  const fontName = user.typography.fontFamily?.name ?? "Not provided";
+
   return `
 You are a UI design system generator.
 
-Generate design tokens that satisfy the following constraints.
+Generate a PARTIAL token set that satisfies the following constraints.
 
 USER PREFERENCES
+Theme Description: ${user.themeDescription ?? "Not provided"}
 Theme Mode: ${user.themeMode}
+Accessibility Target: ${user.accessibilityTarget}
 Brand Primary: ${user.brand.primary}
+Brand Secondary: ${secondary}
+Neutral Preference: ${neutralPreference}
 Typography Base Size: ${user.typography.baseFontSize}px
 Scale Preset: ${user.typography.scalePreset}
+Typography Font Style: ${fontStyle}
+Typography Font Name: ${fontName}
 Spacing Density: ${user.spacing.density}
+Style Tags: ${styleTags}
 
 OUTPUT REQUIREMENTS
 Return STRICT JSON only.
 Do not include explanations.
+Use the exact user brand primary as colors.brand.primary.
+Use the exact user brand secondary as colors.brand.secondary when provided.
+Derive the neutral palette from a tasteful blend of brand primary and secondary.
+Avoid plain grayscale-only output for background/surface/border/text unless required for contrast.
+Generate a widely used browser-loadable font name for typography.fontFamily.
+If uncertain, return the generic family that matches Typography Font Style (serif, sans-serif, monospace).
 
 JSON SCHEMA
-
 {
   "colors": {
     "brand": {
       "primary": "#RRGGBB",
-      "onPrimary": "#RRGGBB"
+      "secondary": "#RRGGBB",
+      "onPrimary": "#RRGGBB",
+      "onSecondary": "#RRGGBB"
     },
     "neutral": {
       "background": "#RRGGBB",
@@ -35,20 +55,17 @@ JSON SCHEMA
     }
   },
   "typography": {
-    "fontFamily": "Inter", // or another web-safe font
-    "baseFontSize": number,
-    "scaleRatio": number
-  },
-  "spacing": {
-    "baseUnit": number
+    "fontFamily": "Font Name"
   },
   "meta": {
     "generatedBy": "llm",
-    "method": "generation",
+    "method": "generation-partial",
     "timestamp": "ISO_DATE"
   }
 }
 
-Ensure colors provide readable contrast.
+Ensure colors provide readable contrast (at least 4.5:1 for AA and 7:1 for AAA).
+Allowed tint values: brand, cool, warm, neutral.
 `;
 }
+

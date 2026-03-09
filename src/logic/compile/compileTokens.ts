@@ -46,11 +46,18 @@ function toRGBA(hex: HexColor, alpha: number): string {
 }
 
 function deriveBrandStates(primary: HexColor) {
-    return {
-        primaryHover: toRGBA(primary, 0.85),
-        primaryActive: toRGBA(primary, 0.65),
-        focusRing: toRGBA(primary, 0.35),
-    };
+  return {
+    primaryHover: toRGBA(primary, 0.85),
+    primaryActive: toRGBA(primary, 0.65),
+    focusRing: toRGBA(primary, 0.35),
+  };
+}
+
+function deriveSecondaryStates(secondary: HexColor) {
+  return {
+    secondaryHover: toRGBA(secondary, 0.85),
+    secondaryActive: toRGBA(secondary, 0.65),
+  };
 }
 
 function densityMultiplierFromPreviewToggle(toggle: "compact" | "normal" | "spacious" | "condensed" ) {
@@ -85,6 +92,7 @@ export function compileTokens(
     
     const states = {
         brand: deriveBrandStates(tokens.colors.brand.primary),
+        secondary: deriveSecondaryStates(tokens.colors.brand.secondary),
     };
 
     const compiled: CompiledTokens = {
@@ -101,7 +109,9 @@ export function compileTokens(
     // Generate CSS variables
     const cssVars: Record<string, string> = {
         "--color-brand-primary": compiled.colors.brand.primary,
+        "--color-brand-secondary": compiled.colors.brand.secondary,
         "--color-brand-on-primary": compiled.colors.brand.onPrimary,
+        "--color-brand-on-secondary": compiled.colors.brand.onSecondary,
 
         "--color-neutral-background": compiled.colors.neutral.background,
         "--color-neutral-surface": compiled.colors.neutral.surface,
@@ -127,6 +137,8 @@ export function compileTokens(
 
         "--state-primary-hover": compiled.derived.states.brand.primaryHover,
         "--state-primary-active": compiled.derived.states.brand.primaryActive,
+        "--state-secondary-hover": compiled.derived.states.secondary.secondaryHover,
+        "--state-secondary-active": compiled.derived.states.secondary.secondaryActive,
         "--state-focus-ring": compiled.derived.states.brand.focusRing,
     };
 
@@ -137,7 +149,9 @@ export function compileTokens(
                 colors: {
                     brand: {
                         primary: "var(--color-brand-primary)",
+                        secondary: "var(--color-brand-secondary)",
                         onPrimary: "var(--color-brand-on-primary)",
+                        onSecondary: "var(--color-brand-on-secondary)",
                     },
                     neutral: {
                         background: "var(--color-neutral-background)",

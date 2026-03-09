@@ -3,6 +3,7 @@ import {z} from 'zod';
 export const HEX_COLOR = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 export const userConstraintsSchema = z.object({
+    themeDescription: z.string().min(8).max(500).optional(),
     themeMode: z.enum(['light', 'dark']),
     accessibilityTarget: z.enum(['AA', 'AAA']),
     brand: z.object({

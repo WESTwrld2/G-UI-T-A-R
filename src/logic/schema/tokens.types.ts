@@ -4,7 +4,9 @@ export type DesignTokens = {
   colors: {
     brand: {
       primary: HexColor;
+      secondary: HexColor;
       onPrimary: HexColor;
+      onSecondary: HexColor;
     };
     neutral: {
       background: HexColor;
@@ -61,6 +63,10 @@ export type CompiledTokens = DesignTokens & {
         primaryHover: HexColor;
         primaryActive: HexColor;
         focusRing: string; // rgba(...) string
+      };
+      secondary: {
+        secondaryHover: string; // rgba(...) string
+        secondaryActive: string; // rgba(...) string
       };
     };
   };
