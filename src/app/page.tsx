@@ -1,11 +1,130 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/theme";
 import type { DesignTokens } from "@/logic/schema/tokens.types";
-import { userConstraintsSchema, type UserConstraints } from "@/logic/schema/userConstraints.zod";
+import { HEX_COLOR, userConstraintsSchema, type UserConstraints } from "@/logic/schema/userConstraints.zod";
 import type { ValidationReport } from "@/logic/validate/validateTokens";
+import type { ThemeDescriptionAssessment } from "@/logic/llm/themeDescriptionAssessment";
+
+const CONSTRAINT_DRAFT_STORAGE_KEY = "constraintDraft.v1";
+
+const DEFAULT_FORM: UserConstraints = {
+  themeDescription:
+    "Earthy vibes for a lifestyle app: warm neutrals, soft contrast, grounded and calm.",
+  themeMode: "light",
+  accessibilityTarget: "AA",
+  brand: { primary: "#e4b424", secondary: "#6a994e", neutralPreference: "warm" },
+  typography: {
+    baseFontSize: 16,
+    scalePreset: "balanced",
+    fontFamily: { style: "serif", name: "Georgia" },
+  },
+  spacing: { density: "normal" },
+  styleTags: ["earthy", "warm", "nature"],
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readEnum<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === "string" && allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+function readNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function readString(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function readHex(value: unknown, fallback: string): string {
+  return typeof value === "string" && HEX_COLOR.test(value) ? value : fallback;
+}
+
+function loadDraftFromStorage(): { form: UserConstraints; styleTagsInput: string } {
+  if (typeof window === "undefined") {
+    return { form: DEFAULT_FORM, styleTagsInput: "earthy, warm, nature" };
+  }
+
+  try {
+    const raw = localStorage.getItem(CONSTRAINT_DRAFT_STORAGE_KEY);
+    if (!raw) {
+      return { form: DEFAULT_FORM, styleTagsInput: "earthy, warm, nature" };
+    }
+
+    const parsed = JSON.parse(raw) as { form?: unknown; styleTagsInput?: unknown };
+    const draft = isRecord(parsed.form) ? parsed.form : {};
+
+    const brandDraft = isRecord(draft.brand) ? draft.brand : {};
+    const typographyDraft = isRecord(draft.typography) ? draft.typography : {};
+    const fontFamilyDraft = isRecord(typographyDraft.fontFamily) ? typographyDraft.fontFamily : {};
+    const spacingDraft = isRecord(draft.spacing) ? draft.spacing : {};
+
+    const styleTags =
+      Array.isArray(draft.styleTags) && draft.styleTags.every((item) => typeof item === "string")
+        ? (draft.styleTags as string[])
+        : DEFAULT_FORM.styleTags;
+
+    const restored: UserConstraints = {
+      themeDescription: readString(draft.themeDescription, DEFAULT_FORM.themeDescription ?? ""),
+      themeMode: readEnum(draft.themeMode, ["light", "dark"] as const, DEFAULT_FORM.themeMode),
+      accessibilityTarget: readEnum(
+        draft.accessibilityTarget,
+        ["AA", "AAA"] as const,
+        DEFAULT_FORM.accessibilityTarget
+      ),
+      brand: {
+        primary: readHex(brandDraft.primary, DEFAULT_FORM.brand.primary),
+        secondary: readHex(brandDraft.secondary, DEFAULT_FORM.brand.secondary ?? "#6a994e"),
+        neutralPreference: readEnum(
+          brandDraft.neutralPreference,
+          ["cool", "warm", "neutral"] as const,
+          DEFAULT_FORM.brand.neutralPreference ?? "neutral"
+        ),
+      },
+      typography: {
+        baseFontSize: readNumber(typographyDraft.baseFontSize, DEFAULT_FORM.typography.baseFontSize),
+        scalePreset: readEnum(
+          typographyDraft.scalePreset,
+          ["compact", "balanced", "expressive", "loose"] as const,
+          DEFAULT_FORM.typography.scalePreset
+        ),
+        fontFamily: {
+          style: readEnum(
+            fontFamilyDraft.style,
+            ["serif", "sans-serif", "monospace"] as const,
+            DEFAULT_FORM.typography.fontFamily?.style ?? "sans-serif"
+          ),
+          name: readString(
+            fontFamilyDraft.name,
+            DEFAULT_FORM.typography.fontFamily?.name ?? defaultFontNameForStyle("sans-serif")
+          ),
+        },
+      },
+      spacing: {
+        density: readEnum(
+          spacingDraft.density,
+          ["condensed", "normal", "spacious"] as const,
+          DEFAULT_FORM.spacing.density
+        ),
+      },
+      styleTags,
+    };
+
+    const tagsInput =
+      typeof parsed.styleTagsInput === "string"
+        ? parsed.styleTagsInput
+        : (restored.styleTags ?? []).join(", ");
+
+    return { form: restored, styleTagsInput: tagsInput };
+  } catch {
+    return { form: DEFAULT_FORM, styleTagsInput: "earthy, warm, nature" };
+  }
+}
 
 function parseStyleTags(input: string): string[] | undefined {
   const tags = input
@@ -15,27 +134,28 @@ function parseStyleTags(input: string): string[] | undefined {
   return tags.length > 0 ? tags : undefined;
 }
 
+function defaultFontNameForStyle(style: "serif" | "sans-serif" | "monospace") {
+  if (style === "serif") return "Georgia";
+  if (style === "monospace") return "Consolas";
+  return "Arial";
+}
+
 export default function Home() {
   const router = useRouter();
   const { setTheme } = useTheme();
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draft] = useState(loadDraftFromStorage);
+  const [form, setForm] = useState<UserConstraints>(draft.form);
+  const [styleTagsInput, setStyleTagsInput] = useState(draft.styleTagsInput);
 
-  const [form, setForm] = useState<UserConstraints>({
-    themeDescription:
-      "Earthy vibes for a lifestyle app: warm neutrals, soft contrast, grounded and calm.",
-    themeMode: "light",
-    accessibilityTarget: "AA",
-    brand: { primary: "#e4b424", secondary: "#6a994e", neutralPreference: "warm" },
-    typography: {
-      baseFontSize: 16,
-      scalePreset: "balanced",
-      fontFamily: { style: "serif", name: "Lora" },
-    },
-    spacing: { density: "normal" },
-    styleTags: ["earthy", "warm", "nature"],
-  });
-  const [styleTagsInput, setStyleTagsInput] = useState("earthy, warm, nature");
+  useEffect(() => {
+    try {
+      localStorage.setItem(CONSTRAINT_DRAFT_STORAGE_KEY, JSON.stringify({ form, styleTagsInput }));
+    } catch {
+      // ignore storage errors
+    }
+  }, [form, styleTagsInput]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -89,6 +209,9 @@ export default function Home() {
       const themeData = {
         cssVars: response.cssVars as Record<string, string>,
         tokens: response.tokens as DesignTokens,
+        constraints: parsed.data,
+        themeDescriptionAssessment:
+          (response.descriptionAssessment as ThemeDescriptionAssessment | null | undefined) ?? null,
         report: response.report as ValidationReport,
         repair: response.repair as { applied: boolean; changes: string[] } | undefined,
       };
@@ -243,7 +366,11 @@ export default function Home() {
                 ...form.typography,
                 fontFamily: {
                   style: e.target.value as "serif" | "sans-serif" | "monospace",
-                  name: form.typography.fontFamily?.name ?? "Inter",
+                  name:
+                    form.typography.fontFamily?.name ??
+                    defaultFontNameForStyle(
+                      e.target.value as "serif" | "sans-serif" | "monospace"
+                    ),
                 },
               }
             })
@@ -270,7 +397,7 @@ export default function Home() {
               },
             })
           }
-          placeholder="Inter, Lora, JetBrains Mono..."
+          placeholder="Arial, Georgia, Consolas..."
         />
 
         <label>Spacing Density</label>

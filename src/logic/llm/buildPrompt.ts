@@ -1,4 +1,5 @@
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
+import { genericFontForStyle, WEB_SAFE_FONT_NAMES_BY_STYLE } from "@/logic/llm/webSafeFonts";
 
 export function buildPrompt(user: UserConstraints) {
   const styleTags = user.styleTags?.length ? user.styleTags.join(", ") : "Not provided";
@@ -6,6 +7,8 @@ export function buildPrompt(user: UserConstraints) {
   const neutralPreference = user.brand.neutralPreference ?? "Not provided";
   const fontStyle = user.typography.fontFamily?.style ?? "sans-serif";
   const fontName = user.typography.fontFamily?.name ?? "Not provided";
+  const allowedFonts = WEB_SAFE_FONT_NAMES_BY_STYLE[fontStyle].join(", ");
+  const fallbackFont = genericFontForStyle(fontStyle);
 
   return `
 You are a UI design system generator.
@@ -33,8 +36,9 @@ Use the exact user brand primary as colors.brand.primary.
 Use the exact user brand secondary as colors.brand.secondary when provided.
 Derive the neutral palette from a tasteful blend of brand primary and secondary.
 Avoid plain grayscale-only output for background/surface/border/text unless required for contrast.
-Generate a widely used browser-loadable font name for typography.fontFamily.
-If uncertain, return the generic family that matches Typography Font Style (serif, sans-serif, monospace).
+Select typography.fontFamily from this allowed list: ${allowedFonts}.
+Return exactly one font name from the list (no comma-separated stack).
+If uncertain, return ${fallbackFont}.
 
 JSON SCHEMA
 {
@@ -68,4 +72,3 @@ Ensure colors provide readable contrast (at least 4.5:1 for AA and 7:1 for AAA).
 Allowed tint values: brand, cool, warm, neutral.
 `;
 }
-

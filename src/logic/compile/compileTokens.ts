@@ -1,6 +1,7 @@
 import type { DesignTokens, CompiledTokens, HexColor } from "@/logic/schema/tokens.types";
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 import { SYSTEM_SPEC } from "@/logic/constraints/systemSpec";
+import { fontStackForName, type FontStyle } from "@/logic/llm/webSafeFonts";
 
 function clamp(n: number, min: number, max: number) {
     return Math.max(min, Math.min(max, n));
@@ -85,6 +86,7 @@ export function compileTokens(
     const baseUnit = clamp(tokens.spacing.baseUnit, SYSTEM_SPEC.spacing.minBaseUnit, SYSTEM_SPEC.spacing.maxBaseUnit);
 
     const densityToggle = opts.previewDensity ?? constraints.spacing.density;
+    const preferredFontStyle = (constraints.typography.fontFamily?.style ?? "sans-serif") as FontStyle;
     const densityMultiplier = densityMultiplierFromPreviewToggle(densityToggle);
 
     const sizesPx = deriveTypography(baseFontSize, scaleRatio);
@@ -119,7 +121,7 @@ export function compileTokens(
         "--color-neutral-text-secondary": compiled.colors.neutral.textSecondary,
         "--color-neutral-border": compiled.colors.neutral.border,
 
-        "--font-family-base": compiled.typography.fontFamily,
+        "--font-family-base": fontStackForName(compiled.typography.fontFamily, preferredFontStyle),
         "--font-size-xs": `${compiled.derived.typography.sizesPx.xs}px`,
         "--font-size-sm": `${compiled.derived.typography.sizesPx.sm}px`,
         "--font-size-md": `${compiled.derived.typography.sizesPx.md}px`,

@@ -12,52 +12,12 @@ import { compileTokens } from "@/logic/compile/compileTokens";
 import { repairTokens } from "@/logic/repair/repairTokens";
 import { contrastThreshold } from "@/logic/constraints/systemSpec";
 import { contrastRatio } from "@/logic/validate/color";
-
-const SAFE_FONTS = new Set(
-  [
-    "arial",
-    "verdana",
-    "tahoma",
-    "trebuchet ms",
-    "times new roman",
-    "georgia",
-    "garamond",
-    "palatino",
-    "bookman",
-    "courier new",
-    "consolas",
-    "lucida console",
-    "helvetica",
-    "segoe ui",
-    "roboto",
-    "open sans",
-    "lato",
-    "poppins",
-    "manrope",
-    "nunito sans",
-    "work sans",
-    "source sans 3",
-    "merriweather",
-    "lora",
-    "libre baskerville",
-    "source serif 4",
-    "eb garamond",
-    "jetbrains mono",
-    "ibm plex mono",
-    "fira code",
-    "source code pro",
-    "space mono",
-    "serif",
-    "sans-serif",
-    "monospace",
-  ]
-);
-
-const GENERIC_FONT_BY_STYLE: Record<"serif" | "sans-serif" | "monospace", "serif" | "sans-serif" | "monospace"> = {
-  serif: "serif",
-  "sans-serif": "sans-serif",
-  monospace: "monospace",
-};
+import { assessThemeDescription } from "@/logic/llm/themeDescriptionAssessment";
+import {
+  genericFontForStyle,
+  normalizeWebSafeFontName,
+  type FontStyle,
+} from "@/logic/llm/webSafeFonts";
 
 function isHexColor(value: unknown): value is `#${string}` {
   return typeof value === "string" && HEX_COLOR.test(value);
@@ -196,17 +156,11 @@ function isMonochromeNeutral(neutral: {
 }
 
 function resolveFontFamily(rawFontFamily: unknown, userConstraints: UserConstraints): string {
-  const userName = userConstraints.typography.fontFamily?.name?.trim();
+  const style = (userConstraints.typography.fontFamily?.style ?? "sans-serif") as FontStyle;
+  const genericFallback = genericFontForStyle(style);
+  const userName = normalizeWebSafeFontName(userConstraints.typography.fontFamily?.name);
   if (userName) return userName;
-  const style = userConstraints.typography.fontFamily?.style ?? "sans-serif";
-  const genericFallback = GENERIC_FONT_BY_STYLE[style];
-  if (typeof rawFontFamily !== "string" || rawFontFamily.trim().length === 0) {
-    return genericFallback;
-  }
-
-  const normalized = rawFontFamily.trim().replace(/^["']|["']$/g, "");
-  const key = normalized.toLowerCase();
-  return SAFE_FONTS.has(key) ? normalized : genericFallback;
+  return normalizeWebSafeFontName(rawFontFamily) ?? genericFallback;
 }
 
 function buildFinalTokens(generated: unknown, userConstraints: UserConstraints): DesignTokens {
@@ -332,6 +286,7 @@ export async function POST(req: Request) {
     }
 
     const userConstraints = parsed.data;
+    const descriptionAssessment = assessThemeDescription(userConstraints.themeDescription);
 
     const generated = await generateWithOpenAI(userConstraints);
     const generatedTokens = buildFinalTokens(generated, userConstraints);
@@ -354,6 +309,7 @@ export async function POST(req: Request) {
       tokens,
       report,
       cssVars,
+      descriptionAssessment,
       repair: {
         applied: repairs.length > 0,
         changes: repairs,

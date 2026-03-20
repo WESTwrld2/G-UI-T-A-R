@@ -84,7 +84,8 @@ export default function ThemeTokenDashboard({ cssVars, tokens }: Props) {
     entries.filter((entry) => entry.name.startsWith("--spacing-")),
     SPACING_ORDER
   );
-  const fontFamily = cssVars["--font-family-base"] ?? tokens.typography.fontFamily;
+  const fontFamilyName = tokens.typography.fontFamily;
+  const fontFamilyStack = cssVars["--font-family-base"] ?? fontFamilyName;
 
   return (
     <div className="token-dashboard">
@@ -110,13 +111,76 @@ export default function ThemeTokenDashboard({ cssVars, tokens }: Props) {
 
       <section className="token-panel">
         <div className="token-panel-head">
+          <h2>Component Preview</h2>
+          <p>Real UI elements consuming the final token values.</p>
+        </div>
+        <div className="component-preview">
+          <div className="component-card">
+            <h3>Product Card</h3>
+            <p>
+              This card uses surface, border, text, and spacing tokens with the generated typography
+              scale.
+            </p>
+            <div className="component-actions">
+              <button className="btn" type="button">
+                Primary Action
+              </button>
+              <button className="preview-btn-secondary" type="button">
+                Secondary
+              </button>
+            </div>
+            <div className="state-showcase">
+              <div className="state-row">
+                <span>Primary states</span>
+                <button className="btn" type="button">
+                  Default
+                </button>
+                <button className="btn is-hovered" type="button">
+                  Hover
+                </button>
+                <button className="btn is-active" type="button">
+                  Active
+                </button>
+              </div>
+              <div className="state-row">
+                <span>Secondary states</span>
+                <button className="preview-btn-secondary" type="button">
+                  Default
+                </button>
+                <button className="preview-btn-secondary is-hovered" type="button">
+                  Hover
+                </button>
+                <button className="preview-btn-secondary is-active" type="button">
+                  Active
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="component-form">
+            <label htmlFor="preview-input">Input Example</label>
+            <input id="preview-input" placeholder="Token-driven input field" />
+            <label htmlFor="preview-select">Select Example</label>
+            <select id="preview-select" defaultValue="default">
+              <option value="default">Default option</option>
+              <option value="alternate">Alternate option</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section className="token-panel">
+        <div className="token-panel-head">
           <h2>Typography</h2>
           <p>Font family and modular scale generated from your constraints.</p>
         </div>
         <div className="typo-meta">
           <div>
-            <span>Font Family</span>
-            <strong>{fontFamily}</strong>
+            <span>Font Name</span>
+            <strong>{fontFamilyName}</strong>
+          </div>
+          <div>
+            <span>Preview Stack</span>
+            <strong>{fontFamilyStack}</strong>
           </div>
           <div>
             <span>Base Size</span>
@@ -170,39 +234,6 @@ export default function ThemeTokenDashboard({ cssVars, tokens }: Props) {
               <p>Padded with {entry.value}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="token-panel">
-        <div className="token-panel-head">
-          <h2>Component Preview</h2>
-          <p>Real UI elements consuming the final token values.</p>
-        </div>
-        <div className="component-preview">
-          <div className="component-card">
-            <h3>Product Card</h3>
-            <p>
-              This card uses surface, border, text, and spacing tokens with the generated typography
-              scale.
-            </p>
-            <div className="component-actions">
-              <button className="btn" type="button">
-                Primary Action
-              </button>
-              <button className="preview-btn-secondary" type="button">
-                Secondary
-              </button>
-            </div>
-          </div>
-          <div className="component-form">
-            <label htmlFor="preview-input">Input Example</label>
-            <input id="preview-input" placeholder="Token-driven input field" />
-            <label htmlFor="preview-select">Select Example</label>
-            <select id="preview-select" defaultValue="default">
-              <option value="default">Default option</option>
-              <option value="alternate">Alternate option</option>
-            </select>
-          </div>
         </div>
       </section>
 

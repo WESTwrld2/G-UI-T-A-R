@@ -60,8 +60,8 @@ export type CompiledTokens = DesignTokens & {
     };
     states: {
       brand: {
-        primaryHover: HexColor;
-        primaryActive: HexColor;
+        primaryHover: string; // rgba(...) string
+        primaryActive: string; // rgba(...) string
         focusRing: string; // rgba(...) string
       };
       secondary: {
