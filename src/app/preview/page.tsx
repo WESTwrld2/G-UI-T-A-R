@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/theme";
 import type { ThemeData } from "@/context/theme";
 import type { DesignTokens } from "@/logic/schema/tokens.types";
+import type { GenerationReport } from "@/logic/schema/generationReport.types";
 import ThemeTokenDashboard from "@/app/components/themeTokenDashboard";
 import ValidationReportComponent from "@/app/components/validationReport";
 import type { ValidationReport } from "@/logic/validate/validateTokens";
@@ -17,6 +18,7 @@ export default function PreviewPage() {
   const data = theme as ThemeData | null; // theme is already maintained by provider
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [regenerationError, setRegenerationError] = useState<string | null>(null);
+  const generationReport = (data?.generationReport ?? null) as GenerationReport | null;
 
   const descriptionAssessment = useMemo(() => {
     if (!data) return null;
@@ -80,6 +82,8 @@ export default function PreviewPage() {
         themeDescriptionAssessment:
           (response.descriptionAssessment as ThemeDescriptionAssessment | null | undefined) ?? null,
         report: response.report as ValidationReport,
+        generationReport:
+          (response.generationReport as GenerationReport | undefined) ?? undefined,
         repair: response.repair as { applied: boolean; changes: string[] } | undefined,
       });
     } catch (error) {
@@ -110,7 +114,7 @@ export default function PreviewPage() {
           </p>
         </div>
         <div className="preview-actions">
-          <button className="preview-btn-secondary" type="button" onClick={goBackToConstraints}>
+          <button className="btn-neutral" type="button" onClick={goBackToConstraints}>
             Back to Constraints
           </button>
           <button
@@ -131,9 +135,64 @@ export default function PreviewPage() {
         </div>
       </header>
 
-      {descriptionAssessment && (
-        <section className="preview-description-fit">
-          <h3>Theme Description Fit</h3>
+      {(descriptionAssessment || generationReport) && (
+        <section className="preview-description-fit preview-generation-report">
+          <h3>Generation Report</h3>
+
+          {generationReport?.inferred?.length ? (
+            <div>
+              <strong>Inferred values</strong>
+              <ul>
+                {generationReport.inferred.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {generationReport?.defaults?.length ? (
+            <div>
+              <strong>Defaults used</strong>
+              <ul>
+                {generationReport.defaults.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {generationReport?.repairs?.length ? (
+            <div>
+              <strong>Repairs applied</strong>
+              <ul>
+                {generationReport.repairs.map((change) => (
+                  <li key={change}>{change}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {generationReport?.sources?.length ? (
+            <details>
+              <summary title="Shows token path + source for each assigned value in this generation">Sources (token origin)</summary>
+              <p style={{ marginTop: '6px', fontSize: '0.9rem', color: 'var(--color-neutral-text-secondary)' }}>
+                This list explains where key values came from: user input, LLM suggestion, derived defaults, or repair.
+              </p>
+              <ul className="preview-source-list">
+                {generationReport.sources.map((item) => (
+                  <li key={`${item.path}-${item.source}-${item.detail ?? ""}`}>
+                    <code>{item.path}</code>
+                    <span>{item.source}</span>
+                    {item.detail ? <small>{item.detail}</small> : null}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+
+          {descriptionAssessment ? (
+            <>
+              <strong>Theme description fit</strong>
           <p>{descriptionAssessment.guidance}</p>
 
           {descriptionAssessment.supportedSignals.length > 0 ? (
@@ -160,6 +219,8 @@ export default function PreviewPage() {
               </ul>
             </div>
           )}
+            </>
+          ) : null}
         </section>
       )}
 
@@ -167,17 +228,6 @@ export default function PreviewPage() {
         <section className="preview-repair">
           <h3>Regeneration Notice</h3>
           <p>{regenerationError}</p>
-        </section>
-      )}
-
-      {data.repair?.applied && data.repair.changes.length > 0 && (
-        <section className="preview-repair">
-          <h3>Applied Repairs</h3>
-          <ul>
-            {data.repair.changes.map((change) => (
-              <li key={change}>{change}</li>
-            ))}
-          </ul>
         </section>
       )}
 

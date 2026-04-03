@@ -29,7 +29,7 @@ export const SYSTEM_SPEC: SystemConstraintSpec = {
     maxScaleRatio: 1.5,
   },
   spacing: {
-    minBaseUnit: 4,
+    minBaseUnit: 6,
     maxBaseUnit: 8,
     steps: ["xs", "sm", "md", "lg", "xl"] as const,
     monotonic: true,
@@ -44,8 +44,12 @@ export const SYSTEM_SPEC: SystemConstraintSpec = {
     ["colors.neutral.textPrimary", "colors.neutral.background"],
     ["colors.neutral.textSecondary", "colors.neutral.background"],
     ["colors.neutral.textPrimary", "colors.neutral.surface"],
+    ["colors.neutral.textSecondary", "colors.neutral.surface"],
     ["colors.brand.onPrimary", "colors.brand.primary"],
     ["colors.brand.onSecondary", "colors.brand.secondary"],
+    ["colors.brand.primary", "colors.brand.secondary"],
+    ["colors.brand.secondary", "colors.neutral.background"],
+    ["colors.brand.primary", "colors.neutral.surface"],
   ],
 };
 

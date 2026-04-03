@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/theme";
 import type { DesignTokens } from "@/logic/schema/tokens.types";
+import type { GenerationReport } from "@/logic/schema/generationReport.types";
 import { HEX_COLOR, userConstraintsSchema, type UserConstraints } from "@/logic/schema/userConstraints.zod";
 import type { ValidationReport } from "@/logic/validate/validateTokens";
 import type { ThemeDescriptionAssessment } from "@/logic/llm/themeDescriptionAssessment";
@@ -213,6 +214,8 @@ export default function Home() {
         themeDescriptionAssessment:
           (response.descriptionAssessment as ThemeDescriptionAssessment | null | undefined) ?? null,
         report: response.report as ValidationReport,
+        generationReport:
+          (response.generationReport as GenerationReport | undefined) ?? undefined,
         repair: response.repair as { applied: boolean; changes: string[] } | undefined,
       };
 
@@ -227,79 +230,135 @@ export default function Home() {
   }
 
   return (
-    <div style={{ padding: 40 }}>
+    <div className="generator-shell">
       <h1>Generate UI Theme</h1>
+      <p className="generator-intro">
+        Define your base token constraints. Keep core fields simple and open advanced only when needed.
+      </p>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 520 }}
-      >
-        <label>Theme Description</label>
-        <textarea
-          rows={4}
-          value={form.themeDescription}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              themeDescription: e.target.value,
-            })
-          }
-        />
+      <form onSubmit={handleSubmit} className="generator-form">
+        <section className="generator-section">
+          <h2>Core Constraints</h2>
 
-        <label>Theme Mode</label>
-        <select
-          value={form.themeMode}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              themeMode: e.target.value as "light" | "dark",
-            })
-          }
-        >
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-
-        <label>Accessibility Target</label>
-        <select
-          value={form.accessibilityTarget}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              accessibilityTarget: e.target.value as "AA" | "AAA",
-            })
-          }
-        >
-          <option value="AA">AA</option>
-          <option value="AAA">AAA</option>
-        </select>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-          <label>Brand Color (Primary)</label>
-          <input
-            type="color"
-            value={form.brand.primary}
+          <label>Theme Description</label>
+          <textarea
+            rows={4}
+            value={form.themeDescription}
             onChange={(e) =>
               setForm({
                 ...form,
-                brand: { ...form.brand, primary: e.target.value }
+                themeDescription: e.target.value,
               })
             }
           />
 
-          <label>Brand Color (Secondary)</label>
-          <input
-            type="color"
-            value={form.brand.secondary}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                brand: { ...form.brand, secondary: e.target.value }
-              })
-            }
-          />
+          <div className="generator-grid">
+            <div>
+              <label>Theme Mode</label>
+              <select
+                value={form.themeMode}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    themeMode: e.target.value as "light" | "dark",
+                  })
+                }
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+            <div>
+              <label>Accessibility Target</label>
+              <select
+                value={form.accessibilityTarget}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    accessibilityTarget: e.target.value as "AA" | "AAA",
+                  })
+                }
+              >
+                <option value="AA">AA</option>
+                <option value="AAA">AAA</option>
+              </select>
+            </div>
+          </div>
 
-          <label>Neutral Preference (Optional)</label>
+          <div className="generator-grid">
+            <div>
+              <label>Brand Color (Primary)</label>
+              <input
+                type="color"
+                value={form.brand.primary}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    brand: { ...form.brand, primary: e.target.value }
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label>Brand Color (Secondary)</label>
+              <input
+                type="color"
+                value={form.brand.secondary}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    brand: { ...form.brand, secondary: e.target.value }
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="generator-grid">
+            <div>
+              <label>Base Font Size</label>
+              <input
+                type="number"
+                value={form.typography.baseFontSize}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    typography: {
+                      ...form.typography,
+                      baseFontSize: Number(e.target.value)
+                    }
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label>Scale Preset</label>
+              <select
+                value={form.typography.scalePreset}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    typography: {
+                      ...form.typography,
+                      scalePreset: e.target.value as "compact" | "balanced" | "expressive" | "loose"
+                    }
+                  })
+                }
+              >
+                <option value="balanced">Balanced</option>
+                <option value="compact">Compact</option>
+                <option value="expressive">Expressive</option>
+                <option value="loose">Loose</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <details className="generator-section generator-advanced">
+          <summary>Advanced Constraints</summary>
+          <div className="generator-grid">
+            <div>
+              <label>Neutral Preference (Optional)</label>
           <select
             value={form.brand.neutralPreference ?? ""}
             onChange={(e) =>
@@ -320,123 +379,94 @@ export default function Home() {
             <option value="warm">Warm</option>
             <option value="neutral">Neutral</option>
           </select>
-        </div>
-
-        <label>Base Font Size</label>
-        <input
-          type="number"
-          value={form.typography.baseFontSize}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              typography: {
-                ...form.typography,
-                baseFontSize: Number(e.target.value)
-              }
-            })
-          }
-        />
-
-        <label>Scale Preset</label>
-        <select
-          value={form.typography.scalePreset}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              typography: {
-                ...form.typography,
-                scalePreset: e.target.value as "compact" | "balanced" | "expressive" | "loose"
-              }
-            })
-          }
-        >
-          <option value="balanced">Balanced</option>
-          <option value="compact">Compact</option>
-          <option value="expressive">Expressive</option>
-          <option value="loose">Loose</option>
-        </select>
-
-        <label>Font Family</label>
-        <select
-          value={form.typography.fontFamily?.style ?? "sans-serif"}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              typography: {
-                ...form.typography,
-                fontFamily: {
-                  style: e.target.value as "serif" | "sans-serif" | "monospace",
-                  name:
-                    form.typography.fontFamily?.name ??
-                    defaultFontNameForStyle(
-                      e.target.value as "serif" | "sans-serif" | "monospace"
-                    ),
+            </div>
+            <div>
+              <label>Font Family Style</label>
+          <select
+            value={form.typography.fontFamily?.style ?? "sans-serif"}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                typography: {
+                  ...form.typography,
+                  fontFamily: {
+                    style: e.target.value as "serif" | "sans-serif" | "monospace",
+                    name:
+                      form.typography.fontFamily?.name ??
+                      defaultFontNameForStyle(
+                        e.target.value as "serif" | "sans-serif" | "monospace"
+                      ),
+                  },
+                }
+              })
+            }
+          >
+            <option value="serif">Serif</option>
+            <option value="sans-serif">Sans-serif</option>
+            <option value="monospace">Monospace</option>
+          </select>
+            </div>
+            <div>
+              <label>Font Name (Optional)</label>
+          <input
+            type="text"
+            value={form.typography.fontFamily?.name ?? ""}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                typography: {
+                  ...form.typography,
+                  fontFamily: {
+                    style: form.typography.fontFamily?.style ?? "sans-serif",
+                    name: e.target.value,
+                  },
                 },
-              }
-            })
-          }
-        >
-          <option value="serif">Serif</option>
-          <option value="sans-serif">Sans-serif</option>
-          <option value="monospace">Monospace</option>
-        </select>
-
-        <label>Font Name (Optional)</label>
-        <input
-          type="text"
-          value={form.typography.fontFamily?.name ?? ""}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              typography: {
-                ...form.typography,
-                fontFamily: {
-                  style: form.typography.fontFamily?.style ?? "sans-serif",
-                  name: e.target.value,
+              })
+            }
+            placeholder="Arial, Georgia, Consolas..."
+          />
+            </div>
+            <div>
+              <label>Spacing Density</label>
+          <select
+            value={form.spacing.density}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                spacing: {
+                  density: e.target.value as "condensed" | "normal" | "spacious",
                 },
-              },
-            })
-          }
-          placeholder="Arial, Georgia, Consolas..."
-        />
-
-        <label>Spacing Density</label>
-        <select
-          value={form.spacing.density}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              spacing: {
-                density: e.target.value as "condensed" | "normal" | "spacious",
-              },
-            })
-          }
-        >
-          <option value="condensed">Condensed</option>
-          <option value="normal">Normal</option>
-          <option value="spacious">Spacious</option>
-        </select>
-
-        <label>Style Tags (comma-separated, optional)</label>
-        <input
-          type="text"
-          value={styleTagsInput}
-          onChange={(e) => setStyleTagsInput(e.target.value)}
-          placeholder="earthy, warm, nature"
-        />
+              })
+            }
+          >
+            <option value="condensed">Condensed</option>
+            <option value="normal">Normal</option>
+            <option value="spacious">Spacious</option>
+          </select>
+            </div>
+            <div>
+              <label>Style Tags (comma-separated, optional)</label>
+          <input
+            type="text"
+            value={styleTagsInput}
+            onChange={(e) => setStyleTagsInput(e.target.value)}
+            placeholder="earthy, warm, nature"
+          />
+            </div>
+          </div>
+        </details>
 
         {formErrors.length > 0 && (
-          <ul style={{ color: "red", margin: 0 }}>
+          <ul className="generator-errors">
             {formErrors.map((error) => (
               <li key={error}>{error}</li>
             ))}
           </ul>
         )}
 
-        <button type="submit" disabled={isSubmitting}>
+        <button type="submit" disabled={isSubmitting} className="btn">
           {isSubmitting ? "Generating..." : "Generate Theme"}
         </button>
-
       </form>
     </div>
   );

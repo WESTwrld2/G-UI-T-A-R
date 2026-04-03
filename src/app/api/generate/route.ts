@@ -13,6 +13,10 @@ import { repairTokens } from "@/logic/repair/repairTokens";
 import { contrastThreshold } from "@/logic/constraints/systemSpec";
 import { contrastRatio } from "@/logic/validate/color";
 import { assessThemeDescription } from "@/logic/llm/themeDescriptionAssessment";
+import type {
+  GenerationSourceItem,
+  GenerationReport,
+} from "@/logic/schema/generationReport.types";
 import {
   genericFontForStyle,
   normalizeWebSafeFontName,
@@ -155,17 +159,51 @@ function isMonochromeNeutral(neutral: {
   return averageChroma < 0.08;
 }
 
-function resolveFontFamily(rawFontFamily: unknown, userConstraints: UserConstraints): string {
+function resolveFontFamily(rawFontFamily: unknown, userConstraints: UserConstraints): {
+  fontFamily: string;
+  source: "user" | "llm" | "default";
+  detail: string;
+} {
   const style = (userConstraints.typography.fontFamily?.style ?? "sans-serif") as FontStyle;
   const genericFallback = genericFontForStyle(style);
   const userName = normalizeWebSafeFontName(userConstraints.typography.fontFamily?.name);
-  if (userName) return userName;
-  return normalizeWebSafeFontName(rawFontFamily) ?? genericFallback;
+  if (userName) {
+    return {
+      fontFamily: userName,
+      source: "user",
+      detail: "Using the explicit user-provided font name.",
+    };
+  }
+
+  const llmName = normalizeWebSafeFontName(rawFontFamily);
+  if (llmName) {
+    return {
+      fontFamily: llmName,
+      source: "llm",
+      detail: "Using the font suggested by the model.",
+    };
+  }
+
+  return {
+    fontFamily: genericFallback,
+    source: "default",
+    detail: `Falling back to default ${style} font (${genericFallback}).`,
+  };
 }
 
-function buildFinalTokens(generated: unknown, userConstraints: UserConstraints): DesignTokens {
+type BuildFinalTokensResult = {
+  tokens: DesignTokens;
+  sources: GenerationSourceItem[];
+  inferred: string[];
+  defaults: string[];
+};
+
+function buildFinalTokens(generated: unknown, userConstraints: UserConstraints): BuildFinalTokensResult {
   const expanded = expandUserConstraints(userConstraints);
   const threshold = contrastThreshold(userConstraints.accessibilityTarget);
+  const sources: GenerationSourceItem[] = [];
+  const inferred: string[] = [];
+  const defaults: string[] = [];
   const llm = (typeof generated === "object" && generated !== null
     ? generated
     : {}) as Record<string, unknown>;
@@ -189,15 +227,41 @@ function buildFinalTokens(generated: unknown, userConstraints: UserConstraints):
   const llmMeta = typeof llm.meta === "object" && llm.meta !== null ? llm.meta : {};
 
   const primary = pickHex(userConstraints.brand.primary, "#0057FF");
+  sources.push({
+    path: "colors.brand.primary",
+    source: "user",
+    detail: "Mapped directly from user constraint brand.primary.",
+  });
+
   const secondaryFromUser = userConstraints.brand.secondary;
+  const llmSecondary = isHexColor(llmBrand.secondary) ? llmBrand.secondary : null;
+  const derivedSecondary = deriveSecondaryFromPrimary(primary, userConstraints.brand.neutralPreference);
   let secondary = secondaryFromUser
-    ? pickHex(secondaryFromUser, deriveSecondaryFromPrimary(primary, userConstraints.brand.neutralPreference))
-    : pickHex(
-        llmBrand.secondary,
-        deriveSecondaryFromPrimary(primary, userConstraints.brand.neutralPreference)
-      );
+    ? pickHex(secondaryFromUser, derivedSecondary)
+    : pickHex(llmBrand.secondary, derivedSecondary);
   if (secondary.toLowerCase() === primary.toLowerCase()) {
-    secondary = deriveSecondaryFromPrimary(primary, userConstraints.brand.neutralPreference);
+    secondary = derivedSecondary;
+  }
+  if (secondaryFromUser) {
+    sources.push({
+      path: "colors.brand.secondary",
+      source: "user",
+      detail: "Mapped directly from user constraint brand.secondary.",
+    });
+  } else if (llmSecondary) {
+    inferred.push("No brand secondary was provided; model suggestion was used.");
+    sources.push({
+      path: "colors.brand.secondary",
+      source: "llm",
+      detail: "Inferred using model output because brand.secondary was omitted.",
+    });
+  } else {
+    inferred.push("No brand secondary was provided; it was derived from primary + neutral preference.");
+    sources.push({
+      path: "colors.brand.secondary",
+      source: "derived",
+      detail: "Inferred from brand.primary and neutral preference.",
+    });
   }
 
   const derivedNeutral = deriveNeutralPalette(primary, secondary, userConstraints.themeMode, threshold);
@@ -220,48 +284,98 @@ function buildFinalTokens(generated: unknown, userConstraints: UserConstraints):
   if (contrastRatio(textSecondary, background) < threshold) {
     textSecondary = textPrimary;
   }
+  sources.push({
+    path: "colors.neutral.*",
+    source: useLlmNeutral ? "llm" : "derived",
+    detail: useLlmNeutral
+      ? "Using model-proposed neutral palette."
+      : "Using derived neutral palette due to low-chroma or missing model neutrals.",
+  });
 
   const preferredOnPrimary = pickHex(llmBrand.onPrimary, pickBestTextColor(primary));
   const preferredOnSecondary = pickHex(llmBrand.onSecondary, pickBestTextColor(secondary));
   const onPrimary = pickReadableText([primary], preferredOnPrimary, threshold);
   const onSecondary = pickReadableText([secondary], preferredOnSecondary, threshold);
+  sources.push({
+    path: "colors.brand.onPrimary",
+    source: "derived",
+    detail: "Resolved from contrast-safe candidate selection.",
+  });
+  sources.push({
+    path: "colors.brand.onSecondary",
+    source: "derived",
+    detail: "Resolved from contrast-safe candidate selection.",
+  });
+
+  const fontResolution = resolveFontFamily(llmTypography.fontFamily, userConstraints);
+  if (fontResolution.source === "default") {
+    defaults.push(fontResolution.detail);
+  }
+  if (fontResolution.source === "llm") {
+    inferred.push("Font name was inferred from model output.");
+  }
+  sources.push({
+    path: "typography.fontFamily",
+    source: fontResolution.source,
+    detail: fontResolution.detail,
+  });
+  sources.push({
+    path: "typography.baseFontSize",
+    source: "user",
+    detail: "Mapped directly from user constraint typography.baseFontSize.",
+  });
+  sources.push({
+    path: "typography.scaleRatio",
+    source: "derived",
+    detail: "Derived from typography.scalePreset.",
+  });
+  sources.push({
+    path: "spacing.baseUnit",
+    source: "derived",
+    detail: "Derived from spacing.density.",
+  });
 
   return {
-    colors: {
-      brand: {
-        primary,
-        secondary,
-        onPrimary,
-        onSecondary,
+    tokens: {
+      colors: {
+        brand: {
+          primary,
+          secondary,
+          onPrimary,
+          onSecondary,
+        },
+        neutral: {
+          background,
+          surface,
+          textPrimary,
+          textSecondary,
+          border,
+          tint: pickTint(
+            llmNeutral.tint,
+            userConstraints.brand.neutralPreference
+              ? userConstraints.brand.neutralPreference
+              : "brand"
+          ),
+        },
       },
-      neutral: {
-        background,
-        surface,
-        textPrimary,
-        textSecondary,
-        border,
-        tint: pickTint(
-          llmNeutral.tint,
-          userConstraints.brand.neutralPreference
-            ? userConstraints.brand.neutralPreference
-            : "brand"
-        ),
+      typography: {
+        fontFamily: fontResolution.fontFamily,
+        baseFontSize: userConstraints.typography.baseFontSize,
+        scaleRatio: expanded.derived.typography.scaleRatio,
+      },
+      spacing: {
+        baseUnit: expanded.derived.spacing.baseUnit,
+      },
+      meta: {
+        generatedBy: "llm",
+        method: "generation+constraints-merge",
+        timestamp: new Date().toISOString(),
+        sourceMeta: llmMeta,
       },
     },
-    typography: {
-      fontFamily: resolveFontFamily(llmTypography.fontFamily, userConstraints),
-      baseFontSize: userConstraints.typography.baseFontSize,
-      scaleRatio: expanded.derived.typography.scaleRatio,
-    },
-    spacing: {
-      baseUnit: expanded.derived.spacing.baseUnit,
-    },
-    meta: {
-      generatedBy: "llm",
-      method: "generation+constraints-merge",
-      timestamp: new Date().toISOString(),
-      sourceMeta: llmMeta,
-    },
+    sources,
+    inferred,
+    defaults,
   };
 }
 
@@ -289,7 +403,8 @@ export async function POST(req: Request) {
     const descriptionAssessment = assessThemeDescription(userConstraints.themeDescription);
 
     const generated = await generateWithOpenAI(userConstraints);
-    const generatedTokens = buildFinalTokens(generated, userConstraints);
+    const built = buildFinalTokens(generated, userConstraints);
+    const generatedTokens = built.tokens;
 
     let tokens = generatedTokens;
     let report = validateTokens(tokens, userConstraints);
@@ -303,6 +418,19 @@ export async function POST(req: Request) {
     }
 
     const {cssVars} = compileTokens(tokens, userConstraints);
+    const generationReport: GenerationReport = {
+      inferred: built.inferred,
+      defaults: built.defaults,
+      sources: built.sources,
+      repairs,
+    };
+    if (repairs.length > 0) {
+      generationReport.sources.push({
+        path: "tokens.*",
+        source: "repair",
+        detail: "Post-generation repair adjusted one or more tokens.",
+      });
+    }
 
     return NextResponse.json({
       ok: true,
@@ -310,6 +438,7 @@ export async function POST(req: Request) {
       report,
       cssVars,
       descriptionAssessment,
+      generationReport,
       repair: {
         applied: repairs.length > 0,
         changes: repairs,
