@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 import type { DesignTokens } from "@/logic/schema/tokens.types";
-import type { GenerationReport } from "@/logic/schema/generationReport.types";
+import type { GenerationReport, RepairDiff } from "@/logic/schema/generationReport.types";
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 import type { ValidationReport } from "@/logic/validate/validateTokens";
 import type { ThemeDescriptionAssessment } from "@/logic/llm/themeDescriptionAssessment";
@@ -18,6 +18,7 @@ export interface ThemeData {
   repair?: {
     applied: boolean;
     changes: string[];
+    diffs?: RepairDiff[];
   };
 }
 

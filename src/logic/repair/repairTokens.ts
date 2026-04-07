@@ -1,5 +1,6 @@
 import { SYSTEM_SPEC, contrastThreshold } from "@/logic/constraints/systemSpec";
 import type { DesignTokens } from "@/logic/schema/tokens.types";
+import type { RepairDiff } from "@/logic/schema/generationReport.types";
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 import { contrastRatio } from "@/logic/validate/color";
 import type { ValidationReport } from "@/logic/validate/validateTokens";
@@ -7,6 +8,7 @@ import type { ValidationReport } from "@/logic/validate/validateTokens";
 type RepairResult = {
   tokens: DesignTokens;
   changes: string[];
+  diffs: RepairDiff[];
 };
 
 function pickBestTextColor(background: string): `#${string}` {
@@ -95,14 +97,27 @@ export function repairTokens(
 ): RepairResult {
   const repaired: DesignTokens = structuredClone(tokens);
   const changes: string[] = [];
+  const diffs: RepairDiff[] = [];
+
+  function track(path: string, before: string | number, after: string | number, reason: string) {
+    if (`${before}` === `${after}`) return;
+    diffs.push({
+      path,
+      before: `${before}`,
+      after: `${after}`,
+      reason,
+    });
+    changes.push(reason);
+  }
 
   const clampedBase = Math.max(
     SYSTEM_SPEC.typography.minBaseFontSize,
     Math.min(SYSTEM_SPEC.typography.maxBaseFontSize, repaired.typography.baseFontSize)
   );
   if (clampedBase !== repaired.typography.baseFontSize) {
+    const before = repaired.typography.baseFontSize;
     repaired.typography.baseFontSize = clampedBase;
-    changes.push("Clamped typography.baseFontSize to system range.");
+    track("typography.baseFontSize", before, clampedBase, "Clamped typography.baseFontSize to system range.");
   }
 
   const clampedRatio = Math.max(
@@ -110,8 +125,9 @@ export function repairTokens(
     Math.min(SYSTEM_SPEC.typography.maxScaleRatio, repaired.typography.scaleRatio)
   );
   if (clampedRatio !== repaired.typography.scaleRatio) {
+    const before = repaired.typography.scaleRatio;
     repaired.typography.scaleRatio = clampedRatio;
-    changes.push("Clamped typography.scaleRatio to system range.");
+    track("typography.scaleRatio", before, clampedRatio, "Clamped typography.scaleRatio to system range.");
   }
 
   const clampedBaseUnit = Math.max(
@@ -119,31 +135,56 @@ export function repairTokens(
     Math.min(SYSTEM_SPEC.spacing.maxBaseUnit, repaired.spacing.baseUnit)
   );
   if (clampedBaseUnit !== repaired.spacing.baseUnit) {
+    const before = repaired.spacing.baseUnit;
     repaired.spacing.baseUnit = clampedBaseUnit;
-    changes.push("Clamped spacing.baseUnit to system range.");
+    track("spacing.baseUnit", before, clampedBaseUnit, "Clamped spacing.baseUnit to system range.");
   }
 
   if (report.system.contrast.some((item) => !item.ok)) {
     const threshold = contrastThreshold(userConstraints.accessibilityTarget);
 
+    const previousPrimary = repaired.colors.brand.primary;
     const primaryFix = ensureBrandContrast(repaired.colors.brand.primary, threshold);
     if (primaryFix.background !== repaired.colors.brand.primary) {
       repaired.colors.brand.primary = primaryFix.background;
-      changes.push("Adjusted colors.brand.primary to satisfy contrast target.");
+      track(
+        "colors.brand.primary",
+        previousPrimary,
+        primaryFix.background,
+        "Adjusted colors.brand.primary to satisfy contrast target."
+      );
     }
+    const previousOnPrimary = repaired.colors.brand.onPrimary;
     if (primaryFix.onColor !== repaired.colors.brand.onPrimary) {
       repaired.colors.brand.onPrimary = primaryFix.onColor;
-      changes.push("Adjusted colors.brand.onPrimary for better contrast.");
+      track(
+        "colors.brand.onPrimary",
+        previousOnPrimary,
+        primaryFix.onColor,
+        "Adjusted colors.brand.onPrimary for better contrast."
+      );
     }
 
+    const previousSecondary = repaired.colors.brand.secondary;
     const secondaryFix = ensureBrandContrast(repaired.colors.brand.secondary, threshold);
     if (secondaryFix.background !== repaired.colors.brand.secondary) {
       repaired.colors.brand.secondary = secondaryFix.background;
-      changes.push("Adjusted colors.brand.secondary to satisfy contrast target.");
+      track(
+        "colors.brand.secondary",
+        previousSecondary,
+        secondaryFix.background,
+        "Adjusted colors.brand.secondary to satisfy contrast target."
+      );
     }
+    const previousOnSecondary = repaired.colors.brand.onSecondary;
     if (secondaryFix.onColor !== repaired.colors.brand.onSecondary) {
       repaired.colors.brand.onSecondary = secondaryFix.onColor;
-      changes.push("Adjusted colors.brand.onSecondary for better contrast.");
+      track(
+        "colors.brand.onSecondary",
+        previousOnSecondary,
+        secondaryFix.onColor,
+        "Adjusted colors.brand.onSecondary for better contrast."
+      );
     }
 
     const sharedText = pickBestSharedTextColor([
@@ -151,8 +192,14 @@ export function repairTokens(
       repaired.colors.neutral.surface,
     ]);
     if (sharedText !== repaired.colors.neutral.textPrimary) {
+      const previousTextPrimary = repaired.colors.neutral.textPrimary;
       repaired.colors.neutral.textPrimary = sharedText;
-      changes.push("Adjusted colors.neutral.textPrimary for better contrast.");
+      track(
+        "colors.neutral.textPrimary",
+        previousTextPrimary,
+        sharedText,
+        "Adjusted colors.neutral.textPrimary for better contrast."
+      );
     }
 
     const secondary = pickBestTextColor(repaired.colors.neutral.background);
@@ -162,8 +209,14 @@ export function repairTokens(
         report.system.contrast.some((item) => item.id.includes("textSecondary"))) &&
       repaired.colors.neutral.textSecondary !== repaired.colors.neutral.textPrimary
     ) {
+      const previousTextSecondary = repaired.colors.neutral.textSecondary;
       repaired.colors.neutral.textSecondary = repaired.colors.neutral.textPrimary;
-      changes.push("Aligned colors.neutral.textSecondary with textPrimary for contrast.");
+      track(
+        "colors.neutral.textSecondary",
+        previousTextSecondary,
+        repaired.colors.neutral.textPrimary,
+        "Aligned colors.neutral.textSecondary with textPrimary for contrast."
+      );
     }
   }
 
@@ -172,5 +225,5 @@ export function repairTokens(
     repaired.meta.repairedAt = new Date().toISOString();
   }
 
-  return { tokens: repaired, changes };
+  return { tokens: repaired, changes, diffs };
 }

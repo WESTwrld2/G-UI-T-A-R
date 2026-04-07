@@ -6,10 +6,17 @@ export type GenerationSourceItem = {
   detail?: string;
 };
 
+export type RepairDiff = {
+  path: string;
+  before: string;
+  after: string;
+  reason: string;
+};
+
 export type GenerationReport = {
   inferred: string[];
   defaults: string[];
   sources: GenerationSourceItem[];
   repairs: string[];
+  repairDiffs: RepairDiff[];
 };
-

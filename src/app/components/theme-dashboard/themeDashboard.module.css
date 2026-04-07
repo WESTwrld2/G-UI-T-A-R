@@ -1,0 +1,468 @@
+.dashboard {
+  display: grid;
+  gap: 18px;
+}
+
+.panel {
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 16px;
+  padding: 18px;
+  background: var(--color-neutral-surface);
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.panelHead {
+  margin-bottom: 14px;
+}
+
+.panelHead p {
+  margin: 6px 0 0;
+  color: var(--color-neutral-text-secondary);
+}
+
+.colorGroupBlock + .colorGroupBlock {
+  margin-top: 14px;
+}
+
+.colorGroupHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.colorGroupHead h3 {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.colorGroupHead span {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-neutral-text-secondary);
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.swatchCard {
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-neutral-surface) 72%, var(--color-neutral-background) 28%);
+}
+
+.swatchPreview {
+  min-height: 88px;
+  padding: 10px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.swatchPreview span {
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 12px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: color-mix(in srgb, #000 40%, transparent);
+}
+
+.swatchMeta {
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.swatchMeta strong {
+  font-size: 13px;
+}
+
+.swatchMeta code {
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 11px;
+  color: var(--color-neutral-text-secondary);
+}
+
+.componentPreview {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 12px;
+}
+
+.componentCard,
+.componentForm {
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 12px;
+  padding: var(--spacing-md);
+  background: var(--color-neutral-background);
+}
+
+.componentStoryCard {
+  display: grid;
+  gap: 12px;
+}
+
+.storyHero {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 35%, var(--color-neutral-border) 65%);
+  padding: var(--spacing-md);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-neutral-background) 72%) 0%,
+    color-mix(in srgb, var(--color-brand-secondary) 25%, var(--color-neutral-surface) 75%) 100%
+  );
+}
+
+.storyKicker {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.storyHero h3 {
+  margin: 8px 0 10px;
+  font-size: var(--font-size-xl);
+}
+
+.storyHero p {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-neutral-text-primary) 88%, var(--color-neutral-text-secondary) 12%);
+}
+
+.componentActions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-md);
+}
+
+.secondaryButton {
+  border: 1px solid transparent;
+  background: var(--color-brand-secondary);
+  color: var(--color-brand-on-secondary);
+  border-radius: 8px;
+  padding: var(--spacing-sm, 10px) var(--spacing-md, 16px);
+  cursor: pointer;
+  transition: background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  font-weight: 600;
+}
+
+.secondaryButton:hover,
+.isHovered {
+  background: var(--state-secondary-hover);
+}
+
+.secondaryButton:active,
+.isActive {
+  background: var(--state-secondary-active);
+  transform: translateY(1px);
+}
+
+.secondaryButton:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.componentForm {
+  display: grid;
+  gap: 8px;
+}
+
+.componentForm label {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-text-secondary);
+}
+
+.componentForm input,
+.componentForm select,
+.componentForm textarea {
+  padding: 10px;
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--color-neutral-text-primary);
+  background: var(--color-neutral-surface);
+}
+
+.componentForm input:focus-visible,
+.componentForm select:focus-visible,
+.componentForm textarea:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+.stateShowcase {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.stateRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.stateRow span {
+  min-width: 115px;
+  color: var(--color-neutral-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.typoMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.typoMeta > div {
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 10px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--color-neutral-background) 70%, var(--color-neutral-surface) 30%);
+}
+
+.typoMeta span {
+  display: block;
+  font-size: 12px;
+  color: var(--color-neutral-text-secondary);
+  margin-bottom: 6px;
+}
+
+.typeContextStack {
+  border: 1px dashed var(--color-neutral-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  background: var(--color-neutral-background);
+}
+
+.typeContextRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.typeContextRow p {
+  margin: 0;
+  line-height: 1.25;
+}
+
+.typeContextRow code {
+  color: var(--color-neutral-text-secondary);
+  font-size: 12px;
+}
+
+.typeScale {
+  display: grid;
+  gap: 12px;
+}
+
+.typeRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr minmax(70px, 90px);
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px dashed var(--color-neutral-border);
+  padding-bottom: 10px;
+}
+
+.typeRow code {
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 12px;
+}
+
+.typeSample {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.typeRow span {
+  justify-self: end;
+  color: var(--color-neutral-text-secondary);
+  font-size: 13px;
+}
+
+.spacingContextGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.spaceContextCard {
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--color-neutral-background);
+}
+
+.spaceContextHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.spaceContextHead code {
+  font-size: 12px;
+}
+
+.spaceContextHead span {
+  color: var(--color-neutral-text-secondary);
+  font-size: 12px;
+}
+
+.spaceStackDemo {
+  border: 1px dashed var(--color-neutral-border);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  background: color-mix(in srgb, var(--color-neutral-surface) 65%, var(--color-neutral-background) 35%);
+}
+
+.spaceStackDemo div {
+  height: 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-neutral-border) 45%);
+}
+
+.spaceInsetDemo {
+  margin-top: 10px;
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 10px;
+  background: var(--color-neutral-surface);
+}
+
+.spaceInsetDemo p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-text-secondary);
+}
+
+.inventoryToolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.inventoryToolbar input {
+  flex: 1;
+  min-width: 250px;
+  padding: 10px;
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--color-neutral-background);
+  color: var(--color-neutral-text-primary);
+}
+
+.inventoryToolbar input:focus-visible {
+  outline: 2px solid var(--state-focus-ring);
+  outline-offset: 2px;
+}
+
+.inventoryGrid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.55fr) minmax(320px, 1fr);
+  gap: 12px;
+}
+
+.inventoryCard {
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--color-neutral-background);
+}
+
+.inventoryCardExpanded {
+  min-height: 260px;
+}
+
+.inventoryCard h4 {
+  margin: 0 0 10px;
+}
+
+.inventoryCard p {
+  margin: 0 0 6px;
+  font-size: var(--font-size-sm);
+}
+
+.inventoryEmpty {
+  margin: 0;
+  color: var(--color-neutral-text-secondary);
+}
+
+.cssVarList {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.cssVarRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px dashed var(--color-neutral-border);
+  padding-bottom: 6px;
+}
+
+.cssVarRow code {
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 12px;
+}
+
+.cssVarRow span {
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 12px;
+  color: var(--color-neutral-text-secondary);
+}
+
+@media (max-width: 980px) {
+  .componentPreview,
+  .inventoryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .typeRow,
+  .typeContextRow {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 620px) {
+  .inventoryToolbar input {
+    min-width: 0;
+  }
+}
