@@ -3,7 +3,9 @@ import type { DesignTokens } from "@/logic/schema/tokens.types";
 import type { RepairDiff } from "@/logic/schema/generationReport.types";
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 import { contrastRatio } from "@/logic/validate/color";
+import { validateTokens } from "@/logic/validate/validateTokens";
 import type { ValidationReport } from "@/logic/validate/validateTokens";
+import { adjustLightness, hexToRgb } from "@/logic/utilities/color";
 
 type RepairResult = {
   tokens: DesignTokens;
@@ -11,213 +13,178 @@ type RepairResult = {
   diffs: RepairDiff[];
 };
 
-function pickBestTextColor(background: string): `#${string}` {
-  const black = "#000000";
-  const white = "#FFFFFF";
-  const blackRatio = contrastRatio(black, background);
-  const whiteRatio = contrastRatio(white, background);
-  return (blackRatio >= whiteRatio ? black : white) as `#${string}`;
-}
+const MAX_ITER = 10;
+const STEP = 0.02;
 
-function hexToRgb(hex: `#${string}`) {
-  const raw = hex.slice(1);
-  const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
-  const num = Number.parseInt(full, 16);
-  return {
-    r: (num >> 16) & 255,
-    g: (num >> 8) & 255,
-    b: num & 255,
+/* ------------------ COLOR UTILS ------------------ */
+
+function luminance(hex: `#${string}`) {
+  const { r, g, b } = hexToRgb(hex);
+
+  const f = (c: number) => {
+    c /= 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   };
+
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
 }
 
-function rgbToHex(r: number, g: number, b: number): `#${string}` {
-  const toHex = (v: number) => {
-    const safe = Math.max(0, Math.min(255, Math.round(v)));
-    return safe.toString(16).padStart(2, "0");
-  };
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}` as `#${string}`;
+/* ------------------ TOKEN ACCESS ------------------ */
+
+function getColor(tokens: DesignTokens, key: string): `#${string}` {
+  const [group, sub, name] = key.split(".");
+  const target = tokens as unknown as Record<string, Record<string, Record<string, `#${string}`>>>;
+  return target[group][sub][name];
 }
 
-function mixHex(a: `#${string}`, b: `#${string}`, t: number): `#${string}` {
-  const aa = hexToRgb(a);
-  const bb = hexToRgb(b);
-  return rgbToHex(
-    aa.r * (1 - t) + bb.r * t,
-    aa.g * (1 - t) + bb.g * t,
-    aa.b * (1 - t) + bb.b * t
-  );
+function setColor(tokens: DesignTokens, key: string, value: `#${string}`) {
+  const [group, sub, name] = key.split(".");
+  const target = tokens as unknown as Record<string, Record<string, Record<string, `#${string}`>>>;
+  target[group][sub][name] = value;
 }
 
-function ensureBrandContrast(
-  background: `#${string}`,
-  threshold: number
-): { background: `#${string}`; onColor: `#${string}`; changed: boolean } {
-  const initialOn = pickBestTextColor(background);
-  const initialRatio = contrastRatio(initialOn, background);
-  if (initialRatio >= threshold) {
-    return { background, onColor: initialOn, changed: false };
+/* ------------------ MUTABILITY ------------------ */
+
+function buildIsMutable(userConstraints: UserConstraints) {
+  const protectedKeys = new Set(["colors.brand.primary"]);
+  if (userConstraints.brand.secondary) {
+    protectedKeys.add("colors.brand.secondary");
   }
+  return (key: string) => !protectedKeys.has(key);
+}
 
-  let best = { background, onColor: initialOn, ratio: initialRatio, delta: 1 };
-  const targets: Array<`#${string}`> = ["#000000", "#FFFFFF"];
-  for (const target of targets) {
-    for (let step = 1; step <= 20; step++) {
-      const t = step / 20;
-      const candidate = mixHex(background, target, t);
-      const candidateOn = pickBestTextColor(candidate);
-      const ratio = contrastRatio(candidateOn, candidate);
-      if (ratio > best.ratio) {
-        best = { background: candidate, onColor: candidateOn, ratio, delta: t };
-      }
-      if (ratio >= threshold) {
-        return { background: candidate, onColor: candidateOn, changed: t > 0 };
-      }
+/* ------------------ FIX PAIR ------------------ */
+
+function fixPair(
+  tokens: DesignTokens,
+  keyA: string,
+  keyB: string,
+  threshold: number,
+  isMutable: (key: string) => boolean
+): boolean {
+  let a = getColor(tokens, keyA);
+  let b = getColor(tokens, keyB);
+  let ratio = contrastRatio(a, b);
+
+  if (ratio >= threshold) return false;
+
+  const aMutable = isMutable(keyA);
+  const bMutable = isMutable(keyB);
+  if (!aMutable && !bMutable) return false;
+
+  for (let i = 0; i < 40; i++) {
+    const aLum = luminance(a);
+    const bLum = luminance(b);
+
+    if (aMutable) {
+      a = adjustLightness(a, aLum > bLum ? -STEP : STEP);
+      setColor(tokens, keyA, a);
     }
+
+    if (bMutable) {
+      b = adjustLightness(b, bLum > aLum ? -STEP : STEP);
+      setColor(tokens, keyB, b);
+    }
+
+    const nextRatio = contrastRatio(a, b);
+    if (nextRatio >= threshold) return true;
+    if (nextRatio <= ratio && i > 0) {
+      break;
+    }
+
+    ratio = nextRatio;
   }
 
-  return {
-    background: best.background,
-    onColor: best.onColor,
-    changed: best.delta > 0,
-  };
+  return contrastRatio(getColor(tokens, keyA), getColor(tokens, keyB)) >= threshold;
 }
 
-function pickBestSharedTextColor(backgrounds: string[]): `#${string}` {
-  const black = "#000000";
-  const white = "#FFFFFF";
-  const blackMin = Math.min(...backgrounds.map((bg) => contrastRatio(black, bg)));
-  const whiteMin = Math.min(...backgrounds.map((bg) => contrastRatio(white, bg)));
-  return (blackMin >= whiteMin ? black : white) as `#${string}`;
-}
+/* ------------------ MAIN ------------------ */
 
 export function repairTokens(
   tokens: DesignTokens,
   userConstraints: UserConstraints,
   report: ValidationReport
 ): RepairResult {
-  const repaired: DesignTokens = structuredClone(tokens);
+  const hasContrastFailures = report.system.contrast.some((item) => !item.ok);
+
+  if (!hasContrastFailures) {
+    return { tokens: structuredClone(tokens), changes: [], diffs: [] };
+  }
+
+  const repaired = structuredClone(tokens);
   const changes: string[] = [];
   const diffs: RepairDiff[] = [];
 
-  function track(path: string, before: string | number, after: string | number, reason: string) {
-    if (`${before}` === `${after}`) return;
-    diffs.push({
-      path,
-      before: `${before}`,
-      after: `${after}`,
-      reason,
-    });
+  const threshold = contrastThreshold(userConstraints.accessibilityTarget);
+
+  function track(path: string, before: string, after: string, reason: string) {
+    if (before === after) return;
+    diffs.push({ path, before, after, reason });
     changes.push(reason);
   }
 
-  const clampedBase = Math.max(
+  /* -------- CLAMPS -------- */
+
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+  const baseBefore = repaired.typography.baseFontSize;
+  repaired.typography.baseFontSize = clamp(
+    baseBefore,
     SYSTEM_SPEC.typography.minBaseFontSize,
-    Math.min(SYSTEM_SPEC.typography.maxBaseFontSize, repaired.typography.baseFontSize)
+    SYSTEM_SPEC.typography.maxBaseFontSize
   );
-  if (clampedBase !== repaired.typography.baseFontSize) {
-    const before = repaired.typography.baseFontSize;
-    repaired.typography.baseFontSize = clampedBase;
-    track("typography.baseFontSize", before, clampedBase, "Clamped typography.baseFontSize to system range.");
-  }
+  track("typography.baseFontSize", `${baseBefore}`, `${repaired.typography.baseFontSize}`, "clamped");
 
-  const clampedRatio = Math.max(
+  const ratioBefore = repaired.typography.scaleRatio;
+  repaired.typography.scaleRatio = clamp(
+    ratioBefore,
     SYSTEM_SPEC.typography.minScaleRatio,
-    Math.min(SYSTEM_SPEC.typography.maxScaleRatio, repaired.typography.scaleRatio)
+    SYSTEM_SPEC.typography.maxScaleRatio
   );
-  if (clampedRatio !== repaired.typography.scaleRatio) {
-    const before = repaired.typography.scaleRatio;
-    repaired.typography.scaleRatio = clampedRatio;
-    track("typography.scaleRatio", before, clampedRatio, "Clamped typography.scaleRatio to system range.");
-  }
+  track("typography.scaleRatio", `${ratioBefore}`, `${repaired.typography.scaleRatio}`, "clamped");
 
-  const clampedBaseUnit = Math.max(
+  const unitBefore = repaired.spacing.baseUnit;
+  repaired.spacing.baseUnit = clamp(
+    unitBefore,
     SYSTEM_SPEC.spacing.minBaseUnit,
-    Math.min(SYSTEM_SPEC.spacing.maxBaseUnit, repaired.spacing.baseUnit)
+    SYSTEM_SPEC.spacing.maxBaseUnit
   );
-  if (clampedBaseUnit !== repaired.spacing.baseUnit) {
-    const before = repaired.spacing.baseUnit;
-    repaired.spacing.baseUnit = clampedBaseUnit;
-    track("spacing.baseUnit", before, clampedBaseUnit, "Clamped spacing.baseUnit to system range.");
-  }
+  track("spacing.baseUnit", `${unitBefore}`, `${repaired.spacing.baseUnit}`, "clamped");
 
-  if (report.system.contrast.some((item) => !item.ok)) {
-    const threshold = contrastThreshold(userConstraints.accessibilityTarget);
+  const isMutableKey = buildIsMutable(userConstraints);
 
-    const previousPrimary = repaired.colors.brand.primary;
-    const primaryFix = ensureBrandContrast(repaired.colors.brand.primary, threshold);
-    if (primaryFix.background !== repaired.colors.brand.primary) {
-      repaired.colors.brand.primary = primaryFix.background;
-      track(
-        "colors.brand.primary",
-        previousPrimary,
-        primaryFix.background,
-        "Adjusted colors.brand.primary to satisfy contrast target."
-      );
-    }
-    const previousOnPrimary = repaired.colors.brand.onPrimary;
-    if (primaryFix.onColor !== repaired.colors.brand.onPrimary) {
-      repaired.colors.brand.onPrimary = primaryFix.onColor;
-      track(
-        "colors.brand.onPrimary",
-        previousOnPrimary,
-        primaryFix.onColor,
-        "Adjusted colors.brand.onPrimary for better contrast."
-      );
-    }
+  /* -------- ITERATIVE CONTRAST FIX -------- */
 
-    const previousSecondary = repaired.colors.brand.secondary;
-    const secondaryFix = ensureBrandContrast(repaired.colors.brand.secondary, threshold);
-    if (secondaryFix.background !== repaired.colors.brand.secondary) {
-      repaired.colors.brand.secondary = secondaryFix.background;
-      track(
-        "colors.brand.secondary",
-        previousSecondary,
-        secondaryFix.background,
-        "Adjusted colors.brand.secondary to satisfy contrast target."
-      );
-    }
-    const previousOnSecondary = repaired.colors.brand.onSecondary;
-    if (secondaryFix.onColor !== repaired.colors.brand.onSecondary) {
-      repaired.colors.brand.onSecondary = secondaryFix.onColor;
-      track(
-        "colors.brand.onSecondary",
-        previousOnSecondary,
-        secondaryFix.onColor,
-        "Adjusted colors.brand.onSecondary for better contrast."
-      );
+  for (let iter = 0; iter < MAX_ITER; iter++) {
+    const currentReport = validateTokens(repaired, userConstraints);
+    const failing = currentReport.system.contrast.filter((item) => !item.ok);
+    if (failing.length === 0) break;
+
+    let anyChange = false;
+
+    for (const item of failing) {
+      const details = item.details as { pathA: string; pathB: string } | undefined;
+      if (!details?.pathA || !details?.pathB) continue;
+
+      const keyA = details.pathA;
+      const keyB = details.pathB;
+      const beforeA = getColor(repaired, keyA);
+      const beforeB = getColor(repaired, keyB);
+
+      const changed = fixPair(repaired, keyA, keyB, threshold, isMutableKey);
+
+      if (changed) {
+        const afterA = getColor(repaired, keyA);
+        const afterB = getColor(repaired, keyB);
+
+        track(keyA, beforeA, afterA, `contrast fix vs ${keyB}`);
+        track(keyB, beforeB, afterB, `contrast fix vs ${keyA}`);
+
+        anyChange = true;
+      }
     }
 
-    const sharedText = pickBestSharedTextColor([
-      repaired.colors.neutral.background,
-      repaired.colors.neutral.surface,
-    ]);
-    if (sharedText !== repaired.colors.neutral.textPrimary) {
-      const previousTextPrimary = repaired.colors.neutral.textPrimary;
-      repaired.colors.neutral.textPrimary = sharedText;
-      track(
-        "colors.neutral.textPrimary",
-        previousTextPrimary,
-        sharedText,
-        "Adjusted colors.neutral.textPrimary for better contrast."
-      );
-    }
-
-    const secondary = pickBestTextColor(repaired.colors.neutral.background);
-    const secondaryRatio = contrastRatio(secondary, repaired.colors.neutral.background);
-    if (
-      (secondaryRatio < threshold ||
-        report.system.contrast.some((item) => item.id.includes("textSecondary"))) &&
-      repaired.colors.neutral.textSecondary !== repaired.colors.neutral.textPrimary
-    ) {
-      const previousTextSecondary = repaired.colors.neutral.textSecondary;
-      repaired.colors.neutral.textSecondary = repaired.colors.neutral.textPrimary;
-      track(
-        "colors.neutral.textSecondary",
-        previousTextSecondary,
-        repaired.colors.neutral.textPrimary,
-        "Aligned colors.neutral.textSecondary with textPrimary for contrast."
-      );
-    }
+    if (!anyChange) break;
   }
 
   if (changes.length > 0) {

@@ -12,7 +12,7 @@ export const userConstraintsSchema = z.object({
         neutralPreference: z.enum(['cool', 'warm', 'neutral']).optional(),
     }),
     typography: z.object({
-        baseFontSize: z.number().min(10).max(24),
+        baseFontSize: z.number().min(12).max(24),
         scalePreset: z.enum(['compact', 'balanced', 'expressive', 'loose']),
         fontFamily: z.object({style: z.enum(['serif', 'sans-serif', 'monospace']), name: z.string().min(2).max(80)}).optional(),
     }),
@@ -38,7 +38,7 @@ const presetToRatio: Record<UserConstraints['typography']['scalePreset'], number
 };
 
 const densityToBaseUnit: Record<UserConstraints['spacing']['density'], number> = {
-    condensed: 4, 
+    condensed: 6,
     normal: 6, 
     spacious: 8, 
 };
@@ -56,11 +56,11 @@ export function analyzeUserConstraints(input: UserConstraints): UserWarning[] {
     }
 
 // Check for potential issues with typography scale
-    if (input.typography.baseFontSize === 10 && input.typography.scalePreset === 'expressive') {
+    if (input.typography.baseFontSize === 12 && input.typography.scalePreset === 'expressive') {
         warnings.push({
             code: 'SMALL_FONT_SIZE',
             severity: 'warning',
-            message: 'You have selected the minimum base font size (10px) with an expressive scale preset. This combination may result in very small text that is hard to read. The system may clamp sizes to preserve legibility.',
+            message: 'You have selected the minimum base font size (12px) with an expressive scale preset. This combination may result in small text that is harder to read. The system may clamp sizes to preserve legibility.',
         });
     }
 

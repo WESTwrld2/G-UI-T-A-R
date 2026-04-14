@@ -1,8 +1,10 @@
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
+import { contrastThreshold } from "@/logic/constraints/systemSpec";
 import { genericFontForStyle, WEB_SAFE_FONT_NAMES_BY_STYLE } from "@/logic/llm/webSafeFonts";
 
 export function buildPrompt(user: UserConstraints) {
   const styleTags = user.styleTags?.length ? user.styleTags.join(", ") : "Not provided";
+  const contrastMin = contrastThreshold(user.accessibilityTarget);
   const secondary = user.brand.secondary ?? "Not provided";
   const neutralPreference = user.brand.neutralPreference ?? "Not provided";
   const fontStyle = user.typography.fontFamily?.style ?? "sans-serif";
@@ -68,7 +70,8 @@ JSON SCHEMA
   }
 }
 
-Ensure colors provide readable contrast (at least 4.5:1 for AA and 7:1 for AAA).
+Ensure colors provide readable contrast with a minimum of ${contrastMin}:1 for all color pairs.
+If the user requested AAA, the minimum target is 7:1; otherwise use 4.5:1 as the baseline.
 Allowed tint values: brand, cool, warm, neutral.
 `;
 }

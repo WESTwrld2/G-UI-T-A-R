@@ -12,6 +12,7 @@ import {
   type UserConstraints,
 } from "@/logic/schema/userConstraints.zod";
 import { contrastRatio } from "@/logic/validate/color";
+import { hexToRgb, mixHex, rgbToHex } from "@/logic/utilities/color";
 
 export type BuildFinalTokensResult = {
   tokens: DesignTokens;
@@ -42,35 +43,6 @@ function pickTint(
     return value;
   }
   return fallback;
-}
-
-function hexToRgb(hex: `#${string}`) {
-  const raw = hex.slice(1);
-  const full = raw.length === 3 ? raw.split("").map((ch) => ch + ch).join("") : raw;
-  const value = Number.parseInt(full, 16);
-  return {
-    r: (value >> 16) & 255,
-    g: (value >> 8) & 255,
-    b: value & 255,
-  };
-}
-
-function rgbToHex(r: number, g: number, b: number): `#${string}` {
-  const toHex = (value: number) => {
-    const safe = Math.max(0, Math.min(255, Math.round(value)));
-    return safe.toString(16).padStart(2, "0");
-  };
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}` as `#${string}`;
-}
-
-function mixHex(a: `#${string}`, b: `#${string}`, ratio: number): `#${string}` {
-  const aa = hexToRgb(a);
-  const bb = hexToRgb(b);
-  return rgbToHex(
-    aa.r * (1 - ratio) + bb.r * ratio,
-    aa.g * (1 - ratio) + bb.g * ratio,
-    aa.b * (1 - ratio) + bb.b * ratio
-  );
 }
 
 function chromaValue(hex: `#${string}`): number {

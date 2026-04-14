@@ -23,8 +23,8 @@ export type SystemConstraintSpec = {
 
 export const SYSTEM_SPEC: SystemConstraintSpec = {
   typography: {
-    minBaseFontSize: 14,
-    maxBaseFontSize: 20,
+    minBaseFontSize: 12,
+    maxBaseFontSize: 24,
     minScaleRatio: 1.1,
     maxScaleRatio: 1.5,
   },
@@ -43,11 +43,11 @@ export const SYSTEM_SPEC: SystemConstraintSpec = {
   requiredContrastPairs: [
     ["colors.neutral.textPrimary", "colors.neutral.background"],
     ["colors.neutral.textSecondary", "colors.neutral.background"],
+    ["colors.neutral.textSecondary", "colors.brand.secondary"],
     ["colors.neutral.textPrimary", "colors.neutral.surface"],
     ["colors.neutral.textSecondary", "colors.neutral.surface"],
     ["colors.brand.onPrimary", "colors.brand.primary"],
     ["colors.brand.onSecondary", "colors.brand.secondary"],
-    ["colors.brand.primary", "colors.brand.secondary"],
     ["colors.brand.secondary", "colors.neutral.background"],
     ["colors.brand.primary", "colors.neutral.surface"],
   ],

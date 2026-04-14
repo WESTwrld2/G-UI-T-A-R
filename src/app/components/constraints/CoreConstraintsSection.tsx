@@ -143,7 +143,13 @@ export default function CoreConstraintsSection({
 
       <div className={styles.grid}>
         <div className={styles.field}>
-          <label htmlFor="baseFontSize">Base Font Size</label>
+          
+          <label htmlFor="baseFontSize">Base Font Size
+             {baseFontError ? (
+              <p className={styles.error}>{baseFontError}</p>
+                ) : (
+              <p className={styles.hint}>Allowed range: 12-24px.</p>)}
+          </label>
           <div className={styles.inputWithSuffix}>
             <input
               id="baseFontSize"
@@ -158,18 +164,13 @@ export default function CoreConstraintsSection({
                   },
                 }))
               }
-              min={10}
+              min={12}
               max={24}
               aria-invalid={Boolean(baseFontError)}
               className={styles.input}
             />
             <span className={styles.suffix}>px</span>
           </div>
-          {baseFontError ? (
-            <p className={styles.error}>{baseFontError}</p>
-          ) : (
-            <p className={styles.hint}>Allowed range: 10-24px.</p>
-          )}
         </div>
         <div className={styles.field}>
           <label htmlFor="scalePreset">Scale Preset</label>
