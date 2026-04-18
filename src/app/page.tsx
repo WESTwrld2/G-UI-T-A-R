@@ -2,12 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useTheme } from "@/context/theme";
-import type { DesignTokens } from "@/logic/schema/tokens.types";
-import type { GenerationReport, RepairDiff } from "@/logic/schema/generationReport.types";
-import { userConstraintsSchema, type UserConstraints } from "@/logic/schema/userConstraints.zod";
-import type { ValidationReport } from "@/logic/validate/validateTokens";
-import type { ThemeDescriptionAssessment } from "@/logic/llm/themeDescriptionAssessment";
+import { constraintDraftSchema, type ConstraintDraft } from "@/logic/schema/userConstraints.zod";
 import CoreConstraintsSection from "@/app/components/constraints/CoreConstraintsSection";
 import AdvancedConstraintsSection from "@/app/components/constraints/AdvancedConstraintsSection";
 import styles from "@/app/components/constraints/constraintsForm.module.css";
@@ -20,13 +15,12 @@ import {
 
 export default function Home() {
   const router = useRouter();
-  const { setTheme } = useTheme();
 
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showValidation, setShowValidation] = useState(true);
   const [draft] = useState(loadConstraintDraft);
-  const [form, setForm] = useState<UserConstraints>(draft.form);
+  const [form, setForm] = useState<ConstraintDraft>(draft.form);
   const [styleTagsInput, setStyleTagsInput] = useState(draft.styleTagsInput);
 
   const issues = useMemo(() => collectConstraintIssues(form, styleTagsInput), [form, styleTagsInput]);
@@ -51,7 +45,7 @@ export default function Home() {
     setFormErrors([]);
 
     const normalized = buildNormalizedConstraints(form, styleTagsInput);
-    const parsed = userConstraintsSchema.safeParse(normalized);
+    const parsed = constraintDraftSchema.safeParse(normalized);
 
     if (!parsed.success) {
       setFormErrors(
@@ -62,7 +56,7 @@ export default function Home() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/generate", {
+      const res = await fetch("/api/constraints", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed.data),
@@ -75,24 +69,15 @@ export default function Home() {
               `${issue.path ?? "form"}: ${issue.message ?? "Invalid value"}`
             )
           : [];
-        setFormErrors(apiIssues.length > 0 ? apiIssues : [response.error ?? "Failed to generate theme"]);
+        setFormErrors(apiIssues.length > 0 ? apiIssues : [response.error ?? "Failed to validate constraints"]);
         return;
       }
 
-      setTheme({
-        cssVars: response.cssVars as Record<string, string>,
-        tokens: response.tokens as DesignTokens,
-        constraints: parsed.data,
-        themeDescriptionAssessment:
-          (response.descriptionAssessment as ThemeDescriptionAssessment | null | undefined) ?? null,
-        report: response.report as ValidationReport,
-        generationReport: (response.generationReport as GenerationReport | undefined) ?? undefined,
-        repair: response.repair as
-          | { applied: boolean; changes: string[]; diffs?: RepairDiff[] }
-          | undefined,
-      });
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("validatedConstraints.v1", JSON.stringify(response.userConstraints));
+      }
 
-      router.push("/preview");
+      router.push("/generate");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unexpected error";
       setFormErrors([message]);
@@ -105,8 +90,18 @@ export default function Home() {
     <div className={styles.shell}>
       <h1 className={styles.title}>Generate UI Theme</h1>
       <p className={styles.intro}>
-        Define your constraints first, then generate and export production-ready tokens.
+        Start with a description. Any constraint you leave blank will be inferred from that prompt before generation.
       </p>
+
+      {form.themeDescription.trim().length >= 8 && (
+        <section className={styles.autoNotice}>
+          <strong>Description-first mode is active.</strong>
+          <span>
+            The system will resolve any blank fields from your theme description before generation. The
+            resolved version is what gets sent forward.
+          </span>
+        </section>
+      )}
 
       <form onSubmit={handleSubmit} className={styles.form} noValidate>
         <CoreConstraintsSection form={form} setForm={setForm} fieldError={fieldError} />
@@ -128,7 +123,7 @@ export default function Home() {
         )}
 
         <button type="submit" disabled={isSubmitting} className={`btn ${styles.generateButton}`}>
-          {isSubmitting ? "Generating Theme..." : "Generate Theme"}
+          {isSubmitting ? "Validating…" : "Submit constraints"}
         </button>
       </form>
     </div>

@@ -1,7 +1,10 @@
 "use client";
 
 import type { ConstraintSectionProps } from "@/app/components/constraints/shared";
-import { toColorPickerValue } from "@/logic/utilities/constraintsForm";
+import {
+  THEME_DESCRIPTION_PLACEHOLDER,
+  toColorPickerValue,
+} from "@/logic/utilities/constraintsForm";
 import styles from "@/app/components/constraints/constraintsForm.module.css";
 
 export default function CoreConstraintsSection({
@@ -24,13 +27,14 @@ export default function CoreConstraintsSection({
         rows={4}
         value={form.themeDescription}
         onChange={(e) => setForm((prev) => ({ ...prev, themeDescription: e.target.value }))}
+        placeholder={THEME_DESCRIPTION_PLACEHOLDER}
         aria-invalid={Boolean(descriptionError)}
         className={styles.textarea}
       />
       {descriptionError ? (
         <p className={styles.error}>{descriptionError}</p>
       ) : (
-        <p className={styles.hint}>Describe mood, contrast intent, and accent direction in one sentence.</p>
+        <p className={styles.hint}>You can submit just this description. Any blank constraint below will be inferred from it.</p>
       )}
 
       <div className={styles.grid}>
@@ -38,10 +42,16 @@ export default function CoreConstraintsSection({
           <label htmlFor="themeMode">Theme Mode</label>
           <select
             id="themeMode"
-            value={form.themeMode}
-            onChange={(e) => setForm((prev) => ({ ...prev, themeMode: e.target.value as "light" | "dark" }))}
+            value={form.themeMode ?? ""}
+            onChange={(e) =>
+              setForm((prev) => ({
+                ...prev,
+                themeMode: e.target.value === "" ? undefined : (e.target.value as "light" | "dark"),
+              }))
+            }
             className={styles.select}
           >
+            <option value="">Auto from description</option>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
@@ -50,9 +60,13 @@ export default function CoreConstraintsSection({
           <label htmlFor="accessibilityTarget">Accessibility Target</label>
           <select
             id="accessibilityTarget"
-            value={form.accessibilityTarget}
+            value={form.accessibilityTarget ?? ""}
             onChange={(e) =>
-              setForm((prev) => ({ ...prev, accessibilityTarget: e.target.value as "AA" | "AAA" }))
+              setForm((prev) => ({
+                ...prev,
+                accessibilityTarget:
+                  e.target.value === "" ? undefined : (e.target.value as "AA" | "AAA"),
+              }))
             }
             className={styles.select}
           >
@@ -68,7 +82,7 @@ export default function CoreConstraintsSection({
           <div className={styles.colorFieldControls}>
             <input
               type="color"
-              value={toColorPickerValue(form.brand.primary)}
+              value={toColorPickerValue(form.brand.primary ?? "")}
               onChange={(e) =>
                 setForm((prev) => ({
                   ...prev,
@@ -81,14 +95,14 @@ export default function CoreConstraintsSection({
             <input
               id="brandPrimaryHex"
               type="text"
-              value={form.brand.primary}
+              value={form.brand.primary ?? ""}
               onChange={(e) =>
                 setForm((prev) => ({
                   ...prev,
-                  brand: { ...prev.brand, primary: e.target.value.trim() || "#" },
+                  brand: { ...prev.brand, primary: e.target.value.trim() || undefined },
                 }))
               }
-              placeholder="#E4B424"
+              placeholder="Blank"
               spellCheck={false}
               aria-label="Brand primary hex value"
               aria-invalid={Boolean(primaryError)}
@@ -98,7 +112,7 @@ export default function CoreConstraintsSection({
           {primaryError ? (
             <p className={styles.error}>{primaryError}</p>
           ) : (
-            <p className={styles.hint}>Current value: {form.brand.primary}</p>
+            <p className={styles.hint}>Blank</p>
           )}
         </div>
         <div className={styles.field}>
@@ -123,10 +137,10 @@ export default function CoreConstraintsSection({
               onChange={(e) =>
                 setForm((prev) => ({
                   ...prev,
-                  brand: { ...prev.brand, secondary: e.target.value.trim() || "#" },
+                  brand: { ...prev.brand, secondary: e.target.value.trim() || undefined },
                 }))
               }
-              placeholder="#6A994E"
+              placeholder="Blank"
               spellCheck={false}
               aria-label="Brand secondary hex value"
               aria-invalid={Boolean(secondaryError)}
@@ -136,7 +150,7 @@ export default function CoreConstraintsSection({
           {secondaryError ? (
             <p className={styles.error}>{secondaryError}</p>
           ) : (
-            <p className={styles.hint}>Current value: {form.brand.secondary ?? "None"}</p>
+            <p className={styles.hint}>Blank</p>
           )}
         </div>
       </div>
@@ -154,13 +168,13 @@ export default function CoreConstraintsSection({
             <input
               id="baseFontSize"
               type="number"
-              value={form.typography.baseFontSize}
+              value={form.typography.baseFontSize ?? ""}
               onChange={(e) =>
                 setForm((prev) => ({
                   ...prev,
                   typography: {
                     ...prev.typography,
-                    baseFontSize: Number(e.target.value),
+                    baseFontSize: e.target.value === "" ? undefined : Number(e.target.value),
                   },
                 }))
               }
@@ -176,18 +190,22 @@ export default function CoreConstraintsSection({
           <label htmlFor="scalePreset">Scale Preset</label>
           <select
             id="scalePreset"
-            value={form.typography.scalePreset}
+            value={form.typography.scalePreset ?? ""}
             onChange={(e) =>
               setForm((prev) => ({
                 ...prev,
                 typography: {
                   ...prev.typography,
-                  scalePreset: e.target.value as "compact" | "balanced" | "expressive" | "loose",
+                  scalePreset:
+                    e.target.value === ""
+                      ? undefined
+                      : (e.target.value as "compact" | "balanced" | "expressive" | "loose"),
                 },
               }))
             }
             className={styles.select}
           >
+            <option value="">Auto from description</option>
             <option value="balanced">Balanced</option>
             <option value="compact">Compact</option>
             <option value="expressive">Expressive</option>

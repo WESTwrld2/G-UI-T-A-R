@@ -5,7 +5,7 @@ import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 import { contrastRatio } from "@/logic/validate/color";
 import { validateTokens } from "@/logic/validate/validateTokens";
 import type { ValidationReport } from "@/logic/validate/validateTokens";
-import { adjustLightness, hexToRgb } from "@/logic/utilities/color";
+import { adjustLightness, hexToRgb, rgbToHex, rgbToHsl, hslToRgb, type HSL } from "@/logic/utilities/color";
 
 type RepairResult = {
   tokens: DesignTokens;
@@ -13,8 +13,20 @@ type RepairResult = {
   diffs: RepairDiff[];
 };
 
-const MAX_ITER = 10;
-const STEP = 0.02;
+type ContrastItemDetails = {
+  pathA: string;
+  pathB: string;
+  ratio?: number;
+};
+
+type CandidateScore = {
+  passCount: number;
+  minRatio: number;
+  distance: number;
+};
+
+const MAX_ITER = 50;
+const SEARCH_STEPS = 128;
 
 /* ------------------ COLOR UTILS ------------------ */
 
@@ -53,49 +65,156 @@ function buildIsMutable(userConstraints: UserConstraints) {
   return (key: string) => !protectedKeys.has(key);
 }
 
-/* ------------------ FIX PAIR ------------------ */
+function chooseRepairTarget(keyA: string, keyB: string) {
+  const textOrOn = (key: string) => /(text|on)/i.test(key);
+  const background = (key: string) => /(background|surface)/i.test(key);
 
-function fixPair(
-  tokens: DesignTokens,
+  if (textOrOn(keyA) && !textOrOn(keyB)) return keyA;
+  if (textOrOn(keyB) && !textOrOn(keyA)) return keyB;
+  if (background(keyA) && !background(keyB)) return keyA;
+  if (background(keyB) && !background(keyA)) return keyB;
+
+  return keyA;
+}
+
+function orderedRepairTargets(
   keyA: string,
   keyB: string,
-  threshold: number,
   isMutable: (key: string) => boolean
-): boolean {
-  let a = getColor(tokens, keyA);
-  let b = getColor(tokens, keyB);
-  let ratio = contrastRatio(a, b);
+) {
+  const preferred = chooseRepairTarget(keyA, keyB);
+  const alternate = preferred === keyA ? keyB : keyA;
+  return [preferred, alternate].filter((key, index, list) => isMutable(key) && list.indexOf(key) === index);
+}
 
-  if (ratio >= threshold) return false;
+function getContrastDetails(item: ValidationReport["system"]["contrast"][number]): ContrastItemDetails | null {
+  const details = item.details as ContrastItemDetails | undefined;
+  if (!details?.pathA || !details?.pathB) return null;
+  return details;
+}
 
-  const aMutable = isMutable(keyA);
-  const bMutable = isMutable(keyB);
-  if (!aMutable && !bMutable) return false;
+function relatedContrastPartners(
+  report: ValidationReport,
+  key: string
+) {
+  const related = new Set<string>();
 
-  for (let i = 0; i < 40; i++) {
-    const aLum = luminance(a);
-    const bLum = luminance(b);
+  for (const item of report.system.contrast) {
+    const details = getContrastDetails(item);
+    if (!details) continue;
 
-    if (aMutable) {
-      a = adjustLightness(a, aLum > bLum ? -STEP : STEP);
-      setColor(tokens, keyA, a);
-    }
-
-    if (bMutable) {
-      b = adjustLightness(b, bLum > aLum ? -STEP : STEP);
-      setColor(tokens, keyB, b);
-    }
-
-    const nextRatio = contrastRatio(a, b);
-    if (nextRatio >= threshold) return true;
-    if (nextRatio <= ratio && i > 0) {
-      break;
-    }
-
-    ratio = nextRatio;
+    if (details.pathA === key) related.add(details.pathB);
+    if (details.pathB === key) related.add(details.pathA);
   }
 
-  return contrastRatio(getColor(tokens, keyA), getColor(tokens, keyB)) >= threshold;
+  return [...related];
+}
+
+function scoreCandidate(
+  candidate: `#${string}`,
+  original: `#${string}`,
+  otherColors: Array<`#${string}`>,
+  threshold: number
+): CandidateScore {
+  const ratios = otherColors.map((other) => contrastRatio(candidate, other));
+  return {
+    passCount: ratios.filter((ratio) => ratio >= threshold).length,
+    minRatio: ratios.length > 0 ? Math.min(...ratios) : Number.POSITIVE_INFINITY,
+    distance: Math.abs(luminance(candidate) - luminance(original)),
+  };
+}
+
+function isBetterCandidate(
+  next: CandidateScore,
+  current: CandidateScore,
+  totalPairs: number
+) {
+  if (next.passCount !== current.passCount) {
+    return next.passCount > current.passCount;
+  }
+
+  const nextPassesAll = next.passCount === totalPairs;
+  const currentPassesAll = current.passCount === totalPairs;
+  if (nextPassesAll && currentPassesAll && next.distance !== current.distance) {
+    return next.distance < current.distance;
+  }
+
+  if (next.minRatio !== current.minRatio) {
+    return next.minRatio > current.minRatio;
+  }
+
+  if (next.distance !== current.distance) {
+    return next.distance < current.distance;
+  }
+
+  return false;
+}
+
+function searchBestColorForKey(
+  tokens: DesignTokens,
+  key: string,
+  report: ValidationReport,
+  threshold: number
+) {
+  const original = getColor(tokens, key);
+  const partnerKeys = relatedContrastPartners(report, key);
+  if (partnerKeys.length === 0) return original;
+
+  const partnerColors = partnerKeys.map((partnerKey) => getColor(tokens, partnerKey));
+  let best = original;
+  let bestScore = scoreCandidate(original, original, partnerColors, threshold);
+
+  // Expanded candidate set with HSL exploration
+  const candidates = new Set<`#${string}`>([original, "#000000", "#FFFFFF"]);
+  const originalHsl = rgbToHsl(hexToRgb(original));
+
+  // 1. Systematic lightness exploration (primary approach for contrast)
+  for (let step = 1; step <= SEARCH_STEPS; step += 1) {
+    const ratio = step / SEARCH_STEPS;
+    // Linear interpolation towards black and white
+    candidates.add(adjustLightness(original, ratio));
+    candidates.add(adjustLightness(original, -ratio));
+  }
+
+  // 2. Saturation adjustments can help with some contrast cases
+  for (let satStep = 0; satStep <= 10; satStep += 1) {
+    const satFactor = satStep / 10; // 0 to 1
+    const newSat = Math.max(0, Math.min(1, originalHsl.s * (1 - satFactor * 0.5))); // Reduce saturation
+    
+    for (let lightStep = 0; lightStep <= 20; lightStep += 1) {
+      const lightDelta = (lightStep - 10) / 10; // -1 to 1
+      const newLight = Math.max(0, Math.min(1, originalHsl.l + lightDelta * 0.5));
+      
+      const hsl: HSL = {
+        h: originalHsl.h,
+        s: newSat,
+        l: newLight,
+      };
+      const rgb = hslToRgb(hsl);
+      candidates.add(rgbToHex(rgb.r, rgb.g, rgb.b));
+    }
+  }
+
+  // 3. Extreme candidates (almost black/white with original hue)
+  for (let hueShift = -0.15; hueShift <= 0.15; hueShift += 0.05) {
+    const h = (originalHsl.h + hueShift + 1) % 1;
+    for (const l of [0.05, 0.15, 0.25, 0.35, 0.65, 0.75, 0.85, 0.95]) {
+      const hsl: HSL = { h, s: 0, l }; // Grayscale for better contrast
+      const rgb = hslToRgb(hsl);
+      candidates.add(rgbToHex(rgb.r, rgb.g, rgb.b));
+    }
+  }
+
+  // Find the best candidate
+  for (const candidate of candidates) {
+    const score = scoreCandidate(candidate, original, partnerColors, threshold);
+    if (isBetterCandidate(score, bestScore, partnerColors.length)) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+
+  return best;
 }
 
 /* ------------------ MAIN ------------------ */
@@ -157,30 +276,36 @@ export function repairTokens(
 
   for (let iter = 0; iter < MAX_ITER; iter++) {
     const currentReport = validateTokens(repaired, userConstraints);
-    const failing = currentReport.system.contrast.filter((item) => !item.ok);
+    const failing = currentReport.system.contrast
+      .filter((item) => !item.ok)
+      .sort((left, right) => {
+        const leftRatio = ((left.details as ContrastItemDetails | undefined)?.ratio ?? 0);
+        const rightRatio = ((right.details as ContrastItemDetails | undefined)?.ratio ?? 0);
+        return leftRatio - rightRatio;
+      });
     if (failing.length === 0) break;
 
     let anyChange = false;
 
     for (const item of failing) {
-      const details = item.details as { pathA: string; pathB: string } | undefined;
-      if (!details?.pathA || !details?.pathB) continue;
+      const details = getContrastDetails(item);
+      if (!details) continue;
 
       const keyA = details.pathA;
       const keyB = details.pathB;
-      const beforeA = getColor(repaired, keyA);
-      const beforeB = getColor(repaired, keyB);
+      const repairTargets = orderedRepairTargets(keyA, keyB, isMutableKey);
 
-      const changed = fixPair(repaired, keyA, keyB, threshold, isMutableKey);
+      for (const repairTarget of repairTargets) {
+        const before = getColor(repaired, repairTarget);
+        const next = searchBestColorForKey(repaired, repairTarget, currentReport, threshold);
 
-      if (changed) {
-        const afterA = getColor(repaired, keyA);
-        const afterB = getColor(repaired, keyB);
-
-        track(keyA, beforeA, afterA, `contrast fix vs ${keyB}`);
-        track(keyB, beforeB, afterB, `contrast fix vs ${keyA}`);
-
-        anyChange = true;
+        if (next !== before) {
+          setColor(repaired, repairTarget, next);
+          const counterpart = repairTarget === keyA ? keyB : keyA;
+          track(repairTarget, before, next, `contrast fix vs ${counterpart}`);
+          anyChange = true;
+          break;
+        }
       }
     }
 

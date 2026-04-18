@@ -87,6 +87,7 @@ export default function PreviewPage() {
           (response.descriptionAssessment as ThemeDescriptionAssessment | null | undefined) ?? null,
         report: response.report as ValidationReport,
         generationReport: (response.generationReport as GenerationReport | undefined) ?? undefined,
+        run: response.run ?? undefined,
         repair: response.repair as
           | { applied: boolean; changes: string[]; diffs?: RepairDiff[] }
           | undefined,
@@ -120,6 +121,9 @@ export default function PreviewPage() {
           <button className={styles.backLink} type="button" onClick={goBackToConstraints}>
             Back to Constraints
           </button>
+          <button className="btn-neutral" type="button" onClick={() => router.push("/history")}>
+            Version History
+          </button>
           <button
             className="btn-neutral"
             type="button"
@@ -142,6 +146,30 @@ export default function PreviewPage() {
         generationReport={generationReport}
         descriptionAssessment={descriptionAssessment}
       />
+
+      {data.run && (
+        <section className={styles.repairNotice}>
+          <h3>Run Record</h3>
+          <p>
+            Run <strong>{data.run.id}</strong> was created on <strong>{data.run.createdAt}</strong> with{" "}
+            <strong>{data.run.model}</strong>.
+          </p>
+        </section>
+      )}
+
+      {data.repair?.diffs && data.repair.diffs.length > 0 && (
+        <section className={styles.repairNotice}>
+          <h3>Repair Summary</h3>
+          <p>Repairs were applied before preview. These are the token values that changed.</p>
+          <ul>
+            {data.repair.diffs.map((diff) => (
+              <li key={`${diff.path}-${diff.before}-${diff.after}`}>
+                <strong>{diff.path}</strong>: {diff.before} {"->"} {diff.after}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {regenerationError && (
         <section className={styles.repairNotice}>

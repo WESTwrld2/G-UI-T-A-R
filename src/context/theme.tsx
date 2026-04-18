@@ -7,6 +7,8 @@ import type { GenerationReport, RepairDiff } from "@/logic/schema/generationRepo
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 import type { ValidationReport } from "@/logic/validate/validateTokens";
 import type { ThemeDescriptionAssessment } from "@/logic/llm/themeDescriptionAssessment";
+import { ensureGoogleFontLoaded, type FontStyle } from "@/logic/llm/googleFonts";
+import type { RunHistorySummary } from "@/logic/history/runHistory.types";
 
 export interface ThemeData {
   cssVars: Record<string, string>;
@@ -15,6 +17,7 @@ export interface ThemeData {
   themeDescriptionAssessment?: ThemeDescriptionAssessment | null;
   report?: ValidationReport; // may be undefined if we decide not to store it
   generationReport?: GenerationReport;
+  run?: RunHistorySummary;
   repair?: {
     applied: boolean;
     changes: string[];
@@ -49,6 +52,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!theme) return;
     applyCSS(theme.cssVars);
+    ensureGoogleFontLoaded(
+      theme.tokens.typography.fontFamily,
+      (theme.constraints?.typography.fontFamily?.style ?? "sans-serif") as FontStyle
+    );
     try {
       localStorage.setItem("previewData", JSON.stringify(theme));
     } catch {

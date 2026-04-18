@@ -3,10 +3,10 @@ import { userConstraintsSchema } from "@/logic/schema/userConstraints.zod";
 import { generateWithOpenAI } from "@/logic/llm/openai";
 import { validateTokens } from "@/logic/validate/validateTokens";
 import { compileTokens } from "@/logic/compile/compileTokens";
-import { repairTokens } from "@/logic/repair/repairTokens";
 import { assessThemeDescription } from "@/logic/llm/themeDescriptionAssessment";
 import type { GenerationReport } from "@/logic/schema/generationReport.types";
 import { buildFinalTokens } from "@/logic/utilities/generation/buildFinalTokens";
+import { createRunHistoryEntry } from "@/logic/history/runHistory.server";
 
 function formatConstraintIssues(parsed: ReturnType<typeof userConstraintsSchema.safeParse>) {
   if (parsed.success) return [];
@@ -19,8 +19,17 @@ function formatConstraintIssues(parsed: ReturnType<typeof userConstraintsSchema.
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const parsed = userConstraintsSchema.safeParse(body);
+    const userConstraints = body?.userConstraints ?? body;
+    const provider = body?.provider ?? "openai";
 
+    if (provider !== "openai") {
+      return NextResponse.json(
+        { ok: false, error: `Unsupported provider: ${provider}` },
+        { status: 400 }
+      );
+    }
+
+    const parsed = userConstraintsSchema.safeParse(userConstraints);
     if (!parsed.success) {
       return NextResponse.json(
         {
@@ -32,55 +41,40 @@ export async function POST(req: Request) {
       );
     }
 
-    const userConstraints = parsed.data;
-    const descriptionAssessment = assessThemeDescription(userConstraints.themeDescription);
-
-    const generated = await generateWithOpenAI(userConstraints);
-    const built = buildFinalTokens(generated, userConstraints);
-
-    let tokens = built.tokens;
-    let report = validateTokens(tokens, userConstraints);
-    let repairs: string[] = [];
-    let repairDiffs = [] as Array<{ path: string; before: string; after: string; reason: string }>;
-
-    if (!report.summary.systemPass && report.summary.repairable) {
-      const repaired = repairTokens(tokens, userConstraints, report);
-      tokens = repaired.tokens;
-      repairs = repaired.changes;
-      repairDiffs = repaired.diffs;
-      report = validateTokens(tokens, userConstraints);
-    }
-
-    const { cssVars } = compileTokens(tokens, userConstraints);
+    const validatedConstraints = parsed.data;
+    const descriptionAssessment = assessThemeDescription(validatedConstraints.themeDescription);
+    const generated = await generateWithOpenAI(validatedConstraints);
+    const built = buildFinalTokens(generated.tokens, validatedConstraints);
+    const report = validateTokens(built.tokens, validatedConstraints);
+    const { cssVars } = compileTokens(built.tokens, validatedConstraints);
+    const run = await createRunHistoryEntry({
+      userConstraints: validatedConstraints,
+      prompt: generated.prompt,
+      rawModelResponse: generated.raw,
+      builtTokens: built.tokens,
+      validationReport: report,
+      cssVars,
+      provider: generated.provider,
+      model: generated.model,
+    });
 
     const generationReport: GenerationReport = {
       inferred: built.inferred,
       defaults: built.defaults,
       sources: built.sources,
-      repairs,
-      repairDiffs,
+      repairs: [],
+      repairDiffs: [],
     };
-
-    if (repairs.length > 0) {
-      generationReport.sources.push({
-        path: "tokens.*",
-        source: "repair",
-        detail: "Post-generation repair adjusted one or more tokens.",
-      });
-    }
 
     return NextResponse.json({
       ok: true,
-      tokens,
+      tokens: built.tokens,
       report,
       cssVars,
+      rawModelResponse: generated.raw,
       descriptionAssessment,
       generationReport,
-      repair: {
-        applied: repairs.length > 0,
-        changes: repairs,
-        diffs: repairDiffs,
-      },
+      run,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "An unknown error occurred";

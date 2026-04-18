@@ -1,9 +1,9 @@
 import { contrastThreshold } from "@/logic/constraints/systemSpec";
 import {
-  genericFontForStyle,
-  normalizeWebSafeFontName,
+  defaultGoogleFontForStyle,
+  normalizeGoogleFontFamily,
   type FontStyle,
-} from "@/logic/llm/webSafeFonts";
+} from "@/logic/llm/googleFonts";
 import type { GenerationSourceItem } from "@/logic/schema/generationReport.types";
 import type { DesignTokens } from "@/logic/schema/tokens.types";
 import {
@@ -12,7 +12,7 @@ import {
   type UserConstraints,
 } from "@/logic/schema/userConstraints.zod";
 import { contrastRatio } from "@/logic/validate/color";
-import { hexToRgb, mixHex, rgbToHex } from "@/logic/utilities/color";
+import { hexToRgb, mixHex } from "@/logic/utilities/color";
 
 export type BuildFinalTokensResult = {
   tokens: DesignTokens;
@@ -139,29 +139,29 @@ function isMonochromeNeutral(neutral: {
 
 function resolveFontFamily(rawFontFamily: unknown, userConstraints: UserConstraints): FontResolution {
   const style = (userConstraints.typography.fontFamily?.style ?? "sans-serif") as FontStyle;
-  const genericFallback = genericFontForStyle(style);
-  const userName = normalizeWebSafeFontName(userConstraints.typography.fontFamily?.name);
+  const googleFallback = defaultGoogleFontForStyle(style);
+  const userName = normalizeGoogleFontFamily(userConstraints.typography.fontFamily?.name, style);
   if (userName) {
     return {
       fontFamily: userName,
       source: "user",
-      detail: "Using the explicit user-provided font name.",
+      detail: "Using the explicit user-provided Google Fonts family.",
     };
   }
 
-  const llmName = normalizeWebSafeFontName(rawFontFamily);
+  const llmName = normalizeGoogleFontFamily(rawFontFamily, style);
   if (llmName) {
     return {
       fontFamily: llmName,
       source: "llm",
-      detail: "Using the font suggested by the model.",
+      detail: "Using the Google Fonts family suggested by the model.",
     };
   }
 
   return {
-    fontFamily: genericFallback,
+    fontFamily: googleFallback,
     source: "default",
-    detail: `Falling back to default ${style} font (${genericFallback}).`,
+    detail: `Falling back to the default ${style} Google Fonts family (${googleFallback}).`,
   };
 }
 

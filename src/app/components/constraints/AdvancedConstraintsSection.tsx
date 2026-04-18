@@ -1,7 +1,7 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
-import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
+import type { ConstraintDraft } from "@/logic/schema/userConstraints.zod";
 import {
   defaultFontNameForStyle,
 } from "@/logic/utilities/constraintsForm";
@@ -9,8 +9,8 @@ import type { FieldErrorGetter } from "@/app/components/constraints/shared";
 import styles from "@/app/components/constraints/constraintsForm.module.css";
 
 type Props = {
-  form: UserConstraints;
-  setForm: Dispatch<SetStateAction<UserConstraints>>;
+  form: ConstraintDraft;
+  setForm: Dispatch<SetStateAction<ConstraintDraft>>;
   styleTagsInput: string;
   setStyleTagsInput: Dispatch<SetStateAction<string>>;
   fieldError: FieldErrorGetter;
@@ -50,7 +50,7 @@ export default function AdvancedConstraintsSection({
             }
             className={styles.select}
           >
-            <option value="">None</option>
+            <option value="">Auto from description</option>
             <option value="cool">Cool</option>
             <option value="warm">Warm</option>
             <option value="neutral">Neutral</option>
@@ -61,23 +61,34 @@ export default function AdvancedConstraintsSection({
           <label htmlFor="fontStyle">Font Family Style</label>
           <select
             id="fontStyle"
-            value={form.typography.fontFamily?.style ?? "sans-serif"}
+            value={form.typography.fontFamily?.style ?? ""}
             onChange={(e) =>
               setForm((prev) => ({
                 ...prev,
                 typography: {
                   ...prev.typography,
-                  fontFamily: {
-                    style: e.target.value as "serif" | "sans-serif" | "monospace",
-                    name:
-                      prev.typography.fontFamily?.name ??
-                      defaultFontNameForStyle(e.target.value as "serif" | "sans-serif" | "monospace"),
-                  },
+                  fontFamily:
+                    e.target.value === "" && !prev.typography.fontFamily?.name
+                      ? undefined
+                      : {
+                          style:
+                            e.target.value === ""
+                              ? undefined
+                              : (e.target.value as "serif" | "sans-serif" | "monospace"),
+                          name:
+                            prev.typography.fontFamily?.name ??
+                            (e.target.value === ""
+                              ? ""
+                              : defaultFontNameForStyle(
+                                  e.target.value as "serif" | "sans-serif" | "monospace"
+                                )),
+                        },
                 },
               }))
             }
             className={styles.select}
           >
+            <option value="">Auto from description</option>
             <option value="serif">Serif</option>
             <option value="sans-serif">Sans-serif</option>
             <option value="monospace">Monospace</option>
@@ -95,21 +106,24 @@ export default function AdvancedConstraintsSection({
                 ...prev,
                 typography: {
                   ...prev.typography,
-                  fontFamily: {
-                    style: prev.typography.fontFamily?.style ?? "sans-serif",
-                    name: e.target.value,
-                  },
+                  fontFamily:
+                    e.target.value || prev.typography.fontFamily?.style
+                      ? {
+                          style: prev.typography.fontFamily?.style,
+                          name: e.target.value,
+                        }
+                      : undefined,
                 },
               }))
             }
-            placeholder="Arial, Georgia, Consolas..."
+            placeholder="Space Grotesk, Merriweather, IBM Plex Mono..."
             aria-invalid={Boolean(fontNameError)}
             className={styles.input}
           />
           {fontNameError ? (
             <p className={styles.error}>{fontNameError}</p>
           ) : (
-            <p className={styles.hint}>Leave blank to allow model/default resolution.</p>
+            <p className={styles.hint}>Leave blank to let the model choose a matching Google Fonts family.</p>
           )}
         </div>
 
@@ -117,17 +131,21 @@ export default function AdvancedConstraintsSection({
           <label htmlFor="density">Spacing Density</label>
           <select
             id="density"
-            value={form.spacing.density}
+            value={form.spacing.density ?? ""}
             onChange={(e) =>
               setForm((prev) => ({
                 ...prev,
                 spacing: {
-                  density: e.target.value as "condensed" | "normal" | "spacious",
+                  density:
+                    e.target.value === ""
+                      ? undefined
+                      : (e.target.value as "condensed" | "normal" | "spacious"),
                 },
               }))
             }
             className={styles.select}
           >
+            <option value="">Auto from description</option>
             <option value="condensed">Condensed</option>
             <option value="normal">Normal</option>
             <option value="spacious">Spacious</option>

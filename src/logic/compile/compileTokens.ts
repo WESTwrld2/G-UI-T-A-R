@@ -1,7 +1,7 @@
 import type { DesignTokens, CompiledTokens, HexColor } from "@/logic/schema/tokens.types";
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 import { SYSTEM_SPEC } from "@/logic/constraints/systemSpec";
-import { fontStackForName, type FontStyle } from "@/logic/llm/webSafeFonts";
+import { fontStackForName, type FontStyle } from "@/logic/llm/googleFonts";
 
 function clamp(n: number, min: number, max: number) {
     return Math.max(min, Math.min(max, n));

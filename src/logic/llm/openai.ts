@@ -3,7 +3,7 @@ import { buildPrompt } from "./buildPrompt";
 import type { UserConstraints } from "@/logic/schema/userConstraints.zod";
 
 const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 function parseModelJson(content: string) {
@@ -15,21 +15,22 @@ function parseModelJson(content: string) {
 
 export async function generateWithOpenAI(userConstraints: UserConstraints) {
   const prompt = buildPrompt(userConstraints);
+  const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
   const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model,
     temperature: 0.6,
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content: "You generate UI design tokens in strict JSON format."
+        content: "You generate UI design tokens in strict JSON format.",
       },
       {
         role: "user",
-        content: prompt
-      }
-    ]
+        content: prompt,
+      },
+    ],
   });
 
   const content = response.choices[0].message.content;
@@ -39,7 +40,13 @@ export async function generateWithOpenAI(userConstraints: UserConstraints) {
   }
 
   try {
-    return parseModelJson(content);
+    return {
+      provider: "openai" as const,
+      model,
+      prompt,
+      raw: content,
+      tokens: parseModelJson(content),
+    };
   } catch {
     throw new Error("LLM output was not valid JSON");
   }

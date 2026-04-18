@@ -1,0 +1,265 @@
+.shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+  display: grid;
+  gap: 28px;
+}
+
+.header {
+  display: grid;
+  gap: 12px;
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.78rem;
+  color: var(--color-neutral-text-secondary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.stepCard,
+.previewCard,
+.rawResponseCard,
+.constraintsCard,
+.repairSummary {
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 16px;
+  padding: 22px;
+  background: var(--color-neutral-surface);
+}
+
+.sectionTitle {
+  margin: 0 0 10px;
+  font-size: var(--font-size-lg);
+}
+
+.summaryList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.summaryItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.summaryLabel {
+  font-weight: 700;
+  color: var(--color-neutral-text-secondary);
+}
+
+.sectionFooter {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.providerList {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.providerOption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 12px;
+  background: var(--color-neutral-background);
+}
+
+.providerOptionDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.rawResponse {
+  white-space: pre-wrap;
+  background: var(--color-neutral-background);
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 12px;
+  padding: 16px;
+  overflow-x: auto;
+  max-height: 360px;
+}
+
+.errorMessage {
+  color: #b00020;
+}
+
+.miniPreview {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--color-neutral-border);
+  border-radius: 18px;
+  padding: 18px;
+  background: var(--color-neutral-background);
+  color: var(--color-neutral-text-primary);
+  font-family: var(--font-family-base);
+}
+
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.previewStatus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statusPass {
+  background: #daf5e5;
+  color: #1e6b2f;
+}
+
+.statusFail {
+  background: #fbe2e6;
+  color: #8a1e2c;
+}
+
+.statusInfo {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.previewSample {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-neutral-surface) 88%, var(--color-neutral-background) 12%);
+  border: 1px solid var(--color-neutral-border);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-neutral-border) 55%, transparent);
+}
+
+.sampleHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.sampleKicker {
+  margin: 0;
+  letter-spacing: 0.1em;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.sampleControls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.swatchItem {
+  padding: 14px;
+  border-radius: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.swatchLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.miniButton,
+.miniButtonSecondary {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.miniButton {
+  background: var(--color-brand-primary);
+  color: var(--color-brand-on-primary);
+}
+
+.miniButtonSecondary {
+  background: var(--color-neutral-surface);
+  color: var(--color-neutral-text-primary);
+  border-color: var(--color-neutral-border);
+}
+
+.validationSummary {
+  margin-top: 14px;
+  color: var(--color-neutral-text-primary);
+}
+
+.repairNoticeLine {
+  margin-top: 8px;
+  color: var(--color-brand-secondary);
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.repairTimeline {
+  margin-top: 12px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.repairItem {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-neutral-background);
+  border: 1px solid var(--color-neutral-border);
+  font-size: 0.95rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  color: var(--color-neutral-text-primary);
+  background: var(--color-neutral-background);
+  border: 1px solid var(--color-neutral-border);
+}

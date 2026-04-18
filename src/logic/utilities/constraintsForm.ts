@@ -1,31 +1,31 @@
-import { HEX_COLOR, userConstraintsSchema, type UserConstraints } from "@/logic/schema/userConstraints.zod";
+import {
+  HEX_COLOR,
+  constraintDraftSchema,
+  type ConstraintDraft as ConstraintDraftForm,
+} from "@/logic/schema/userConstraints.zod";
 
-export const CONSTRAINT_DRAFT_STORAGE_KEY = "constraintDraft.v1";
-export const DEFAULT_STYLE_TAGS_INPUT = "earthy, warm, nature";
+export const CONSTRAINT_DRAFT_STORAGE_KEY = "constraintDraft.v2";
+export const DEFAULT_STYLE_TAGS_INPUT = "";
+export const THEME_DESCRIPTION_PLACEHOLDER =
+  "Example: A warm editorial wellness app with earthy olive and terracotta accents, soft contrast, generous spacing, readable text, and elegant serif typography.";
 
 export type ConstraintFormIssue = {
   path: string;
   message: string;
 };
 
-export type ConstraintDraft = {
-  form: UserConstraints;
+export type ConstraintDraftState = {
+  form: ConstraintDraftForm;
   styleTagsInput: string;
 };
 
-export const DEFAULT_FORM: UserConstraints = {
-  themeDescription:
-    "Earthy vibes for a lifestyle app: warm neutrals, soft contrast, grounded and calm.",
-  themeMode: "light",
-  accessibilityTarget: "AA",
-  brand: { primary: "#e4b424", secondary: "#6a994e", neutralPreference: "warm" },
+export const DEFAULT_FORM: ConstraintDraftForm = {
+  themeDescription: "",
+  brand: {},
   typography: {
-    baseFontSize: 16,
-    scalePreset: "balanced",
-    fontFamily: { style: "serif", name: "Georgia" },
+    fontFamily: {},
   },
-  spacing: { density: "normal" },
-  styleTags: ["earthy", "warm", "nature"],
+  spacing: {},
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -61,36 +61,44 @@ export function parseStyleTags(input: string): string[] | undefined {
 }
 
 export function defaultFontNameForStyle(style: "serif" | "sans-serif" | "monospace") {
-  if (style === "serif") return "Georgia";
-  if (style === "monospace") return "Consolas";
-  return "Arial";
+  if (style === "serif") return "Merriweather";
+  if (style === "monospace") return "IBM Plex Mono";
+  return "Space Grotesk";
 }
 
-export function buildNormalizedConstraints(form: UserConstraints, styleTagsInput: string) {
+export function buildNormalizedConstraints(
+  form: ConstraintDraftForm,
+  styleTagsInput: string
+): ConstraintDraftForm {
   return {
     ...form,
-    themeDescription: form.themeDescription?.trim() || undefined,
+    themeDescription: form.themeDescription.trim(),
     brand: {
       ...form.brand,
       secondary: form.brand.secondary?.trim() || undefined,
+      primary: form.brand.primary?.trim() || undefined,
       neutralPreference: form.brand.neutralPreference || undefined,
     },
     typography: {
       ...form.typography,
-      fontFamily: form.typography.fontFamily?.name.trim()
-        ? { ...form.typography.fontFamily, name: form.typography.fontFamily.name.trim() }
-        : undefined,
+      fontFamily:
+        form.typography.fontFamily?.name?.trim() || form.typography.fontFamily?.style
+          ? {
+              style: form.typography.fontFamily?.style,
+              name: form.typography.fontFamily?.name?.trim() || undefined,
+            }
+          : undefined,
     },
     styleTags: parseStyleTags(styleTagsInput),
   };
 }
 
 export function collectConstraintIssues(
-  form: UserConstraints,
+  form: ConstraintDraftForm,
   styleTagsInput: string
 ): ConstraintFormIssue[] {
   const normalized = buildNormalizedConstraints(form, styleTagsInput);
-  const parsed = userConstraintsSchema.safeParse(normalized);
+  const parsed = constraintDraftSchema.safeParse(normalized);
   if (parsed.success) return [];
   return parsed.error.issues.map((issue) => ({
     path: issue.path.join(".") || "form",
@@ -98,7 +106,7 @@ export function collectConstraintIssues(
   }));
 }
 
-export function loadConstraintDraft(): ConstraintDraft {
+export function loadConstraintDraft(): ConstraintDraftState {
   if (typeof window === "undefined") {
     return { form: DEFAULT_FORM, styleTagsInput: DEFAULT_STYLE_TAGS_INPUT };
   }
@@ -122,48 +130,50 @@ export function loadConstraintDraft(): ConstraintDraft {
         ? (draft.styleTags as string[])
         : DEFAULT_FORM.styleTags;
 
-    const restored: UserConstraints = {
+    const themeMode = readString(draft.themeMode, "");
+    const accessibilityTarget = readString(draft.accessibilityTarget, "");
+    const neutralPreference = readString(brandDraft.neutralPreference, "");
+    const scalePreset = readString(typographyDraft.scalePreset, "");
+    const fontStyle = readString(fontFamilyDraft.style, "");
+    const density = readString(spacingDraft.density, "");
+
+    const restored: ConstraintDraftForm = {
       themeDescription: readString(draft.themeDescription, DEFAULT_FORM.themeDescription ?? ""),
-      themeMode: readEnum(draft.themeMode, ["light", "dark"] as const, DEFAULT_FORM.themeMode),
-      accessibilityTarget: readEnum(
-        draft.accessibilityTarget,
-        ["AA", "AAA"] as const,
-        DEFAULT_FORM.accessibilityTarget
-      ),
+      themeMode: themeMode === "" ? undefined : readEnum(themeMode, ["light", "dark"] as const, "light"),
+      accessibilityTarget:
+        accessibilityTarget === ""
+          ? undefined
+          : readEnum(accessibilityTarget, ["AA", "AAA"] as const, "AA"),
       brand: {
-        primary: readHex(brandDraft.primary, DEFAULT_FORM.brand.primary),
-        secondary: readHex(brandDraft.secondary, DEFAULT_FORM.brand.secondary ?? "#6a994e"),
-        neutralPreference: readEnum(
-          brandDraft.neutralPreference,
-          ["cool", "warm", "neutral"] as const,
-          DEFAULT_FORM.brand.neutralPreference ?? "neutral"
-        ),
+        primary: typeof brandDraft.primary === "string" ? readHex(brandDraft.primary, "") : undefined,
+        secondary: typeof brandDraft.secondary === "string" ? readHex(brandDraft.secondary, "") : undefined,
+        neutralPreference:
+          neutralPreference === ""
+            ? undefined
+            : readEnum(neutralPreference, ["cool", "warm", "neutral"] as const, "neutral"),
       },
       typography: {
-        baseFontSize: readNumber(typographyDraft.baseFontSize, DEFAULT_FORM.typography.baseFontSize),
-        scalePreset: readEnum(
-          typographyDraft.scalePreset,
-          ["compact", "balanced", "expressive", "loose"] as const,
-          DEFAULT_FORM.typography.scalePreset
-        ),
+        baseFontSize:
+          typeof typographyDraft.baseFontSize === "number"
+            ? readNumber(typographyDraft.baseFontSize, 16)
+            : undefined,
+        scalePreset:
+          scalePreset === ""
+            ? undefined
+            : readEnum(scalePreset, ["compact", "balanced", "expressive", "loose"] as const, "balanced"),
         fontFamily: {
-          style: readEnum(
-            fontFamilyDraft.style,
-            ["serif", "sans-serif", "monospace"] as const,
-            DEFAULT_FORM.typography.fontFamily?.style ?? "sans-serif"
-          ),
-          name: readString(
-            fontFamilyDraft.name,
-            DEFAULT_FORM.typography.fontFamily?.name ?? defaultFontNameForStyle("sans-serif")
-          ),
+          style:
+            fontStyle === ""
+              ? undefined
+              : readEnum(fontStyle, ["serif", "sans-serif", "monospace"] as const, "sans-serif"),
+          name: readString(fontFamilyDraft.name, ""),
         },
       },
       spacing: {
-        density: readEnum(
-          spacingDraft.density,
-          ["condensed", "normal", "spacious"] as const,
-          DEFAULT_FORM.spacing.density
-        ),
+        density:
+          density === ""
+            ? undefined
+            : readEnum(density, ["condensed", "normal", "spacious"] as const, "normal"),
       },
       styleTags,
     };

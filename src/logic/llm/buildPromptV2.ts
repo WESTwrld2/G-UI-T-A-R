@@ -5,7 +5,36 @@ import {
   googleFontExamplesForStyle,
 } from "@/logic/llm/googleFonts";
 
-export function buildPrompt(user: UserConstraints) {
+// Build prompt for LLM token generation
+// Supports 'structured' (comprehensive) and 'naive' (minimal) modes
+export function buildPrompt(user: UserConstraints, mode: "structured" | "naive" = "structured"): string {
+  if (mode === "naive") {
+    return buildNaivePrompt(user);
+  }
+  return buildStructuredPrompt(user);
+}
+
+// Naive mode: minimal, open-ended prompt for creative LLM choices
+function buildNaivePrompt(user: UserConstraints): string {
+  const secondary = user.brand.secondary ? `and ${user.brand.secondary}` : "";
+  const description = user.themeDescription ?? "Create a nice design system";
+
+  return `
+Generate a design token set for a ${user.themeMode} mode UI theme. 
+
+Theme: ${description}
+Primary brand color: ${user.brand.primary} ${secondary}
+Accessibility: ${user.accessibilityTarget}
+Font size base: ${user.typography.baseFontSize}px
+Scale: ${user.typography.scalePreset}
+Spacing: ${user.spacing.density}
+
+Return only a valid JSON with colors (brand with primary/secondary/onPrimary/onSecondary, neutral with background/surface/textPrimary/textSecondary/border/tint), typography (fontFamily), and meta (generatedBy, method, timestamp).
+`;
+}
+
+// Structured mode: comprehensive prompt with detailed requirements
+function buildStructuredPrompt(user: UserConstraints): string {
   const styleTags = user.styleTags?.length ? user.styleTags.join(", ") : "Not provided";
   const contrastMin = contrastThreshold(user.accessibilityTarget);
   const secondary = user.brand.secondary ?? "Not provided";
@@ -83,8 +112,24 @@ JSON SCHEMA
   }
 }
 
+CONTRAST REQUIREMENTS
 Ensure colors provide readable contrast with a minimum of ${contrastMin}:1 for all color pairs.
 If the user requested AAA, the minimum target is 7:1; otherwise use 4.5:1 as the baseline.
+Test specifically: textPrimary vs background, textSecondary vs surface, and all brand colors vs their onColor counterparts.
+Pay special attention to neutral colors to ensure sufficient contrast in the theme mode (${user.themeMode}).
+
+TINT REQUIREMENT
 Allowed tint values: brand, cool, warm, neutral.
+The tint should harmonize with the theme's overall mood and the user's neutralPreference (${neutralPreference}).
 `;
+}
+
+/**
+ * Get the current prompt builder implementation
+ * This allows external code to retrieve the prompt without calling the LLM
+ */
+export function getPromptMode(): "structured" | "naive" {
+  // This can be controlled via environment variable or config
+  const mode = process.env.PROMPT_MODE as "structured" | "naive" | undefined;
+  return mode ?? "structured";
 }
