@@ -1,0 +1,25 @@
+{
+  "runId": "44979d5e-3348-440b-aa3b-64d654f9dbb8",
+  "inputId": "edge-2",
+  "model": "openai",
+  "promptMode": "structured",
+  "repaired": true,
+  "metricsBefore": {
+    "contrastScore": 0.75,
+    "typographyScore": 1,
+    "schemaValid": true,
+    "schemaErrorCount": 0,
+    "violationCount": 2,
+    "aggregateScore": 0.9000000000000001
+  },
+  "metricsAfter": {
+    "contrastScore": 1,
+    "typographyScore": 1,
+    "schemaValid": true,
+    "schemaErrorCount": 0,
+    "violationCount": 0,
+    "aggregateScore": 1
+  },
+  "violationReduction": 2,
+  "timestamp": "2026-04-18T22:57:07.997Z"
+}

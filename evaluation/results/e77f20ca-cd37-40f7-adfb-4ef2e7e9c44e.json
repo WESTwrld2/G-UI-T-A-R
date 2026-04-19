@@ -1,0 +1,25 @@
+{
+  "runId": "e77f20ca-cd37-40f7-adfb-4ef2e7e9c44e",
+  "inputId": "extreme-2",
+  "model": "openai",
+  "promptMode": "structured",
+  "repaired": true,
+  "metricsBefore": {
+    "contrastScore": 0.625,
+    "typographyScore": 1,
+    "schemaValid": true,
+    "schemaErrorCount": 0,
+    "violationCount": 3,
+    "aggregateScore": 0.8500000000000001
+  },
+  "metricsAfter": {
+    "contrastScore": 1,
+    "typographyScore": 1,
+    "schemaValid": true,
+    "schemaErrorCount": 0,
+    "violationCount": 0,
+    "aggregateScore": 1
+  },
+  "violationReduction": 3,
+  "timestamp": "2026-04-18T22:57:38.721Z"
+}

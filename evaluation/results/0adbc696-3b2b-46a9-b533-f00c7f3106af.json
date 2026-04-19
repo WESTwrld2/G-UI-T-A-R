@@ -1,0 +1,25 @@
+{
+  "runId": "0adbc696-3b2b-46a9-b533-f00c7f3106af",
+  "inputId": "normal-8",
+  "model": "openai",
+  "promptMode": "structured",
+  "repaired": true,
+  "metricsBefore": {
+    "contrastScore": 0.75,
+    "typographyScore": 1,
+    "schemaValid": true,
+    "schemaErrorCount": 0,
+    "violationCount": 2,
+    "aggregateScore": 0.9000000000000001
+  },
+  "metricsAfter": {
+    "contrastScore": 0.75,
+    "typographyScore": 1,
+    "schemaValid": true,
+    "schemaErrorCount": 0,
+    "violationCount": 2,
+    "aggregateScore": 0.9000000000000001
+  },
+  "violationReduction": 0,
+  "timestamp": "2026-04-18T22:56:54.594Z"
+}
