@@ -14,6 +14,23 @@ export function buildPrompt(user: UserConstraints) {
   const fontName = user.typography.fontFamily?.name ?? "Not provided";
   const fontExamples = googleFontExamplesForStyle(fontStyle).join(", ");
   const fallbackFont = defaultGoogleFontForStyle(fontStyle);
+  const fontInstructions =
+    user.typography.fontFamily?.name
+      ? `Respect the explicit Typography Font Name exactly.
+Return exactly one font family name only (no comma-separated stack, no fallback list).
+Do not replace the requested font with a different Google Fonts alternative.
+If the requested font is a legacy/system/web-safe font, still return that exact family name.`
+      : `Select typography.fontFamily as a valid Google Fonts family that EXACTLY matches the requested font style.
+Return exactly one font family name only (no comma-separated stack, no fallback list).
+Do not include explanations or multiple options.
+Do not return generic CSS families or legacy default faces like Arial, Times New Roman, Georgia, Consolas, Courier New, Helvetica, Verdana, or Trebuchet.
+For serif style: Must be a Google Fonts serif family (e.g., ${fontExamples}).
+For sans-serif style: Must be a Google Fonts sans-serif family (e.g., ${fontExamples}).
+For monospace style: Must be a Google Fonts monospace family designed for code/terminals (e.g., ${fontExamples}).
+If the requested style is monospace, ONLY return a true monospace Google Fonts family - never a proportional font.
+If the requested style is serif or sans-serif, ONLY return fonts matching that style - never monospace.
+Verify the selected font exists in Google Fonts library.
+If uncertain or cannot match the style exactly, return: ${fallbackFont}`;
 
   return `
 You are a UI design system generator.
@@ -43,17 +60,7 @@ Use the exact user brand primary as colors.brand.primary.
 Use the exact user brand secondary as colors.brand.secondary when provided.
 Derive the neutral palette from a tasteful blend of brand primary and secondary.
 Avoid plain grayscale-only output for background/surface/border/text unless required for contrast.
-Select typography.fontFamily as a valid Google Fonts family that EXACTLY matches the requested font style.
-Return exactly one font family name only (no comma-separated stack, no fallback list).
-Do not include explanations or multiple options.
-Do not return generic CSS families or legacy default faces like Arial, Times New Roman, Georgia, Consolas, Courier New, Helvetica, Verdana, or Trebuchet.
-For serif style: Must be a Google Fonts serif family (e.g., ${fontExamples}).
-For sans-serif style: Must be a Google Fonts sans-serif family (e.g., ${fontExamples}).
-For monospace style: Must be a Google Fonts monospace family designed for code/terminals (e.g., ${fontExamples}).
-If the requested style is monospace, ONLY return a true monospace Google Fonts family - never a proportional font.
-If the requested style is serif or sans-serif, ONLY return fonts matching that style - never monospace.
-Verify the selected font exists in Google Fonts library.
-If uncertain or cannot match the style exactly, return: ${fallbackFont}
+${fontInstructions}
 
 JSON SCHEMA
 {

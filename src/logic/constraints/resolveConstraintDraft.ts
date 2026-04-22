@@ -3,7 +3,11 @@ import {
   type ConstraintDraft,
   type UserConstraints,
 } from "@/logic/schema/userConstraints.zod";
-import { defaultGoogleFontForStyle } from "@/logic/llm/googleFonts";
+import {
+  defaultGoogleFontForStyle,
+  extractFontFamilyFromText,
+  inferFontStyleFromFamily,
+} from "@/logic/llm/googleFonts";
 
 type PaletteHint = {
   patterns: RegExp[];
@@ -143,7 +147,29 @@ function inferSpacingDensity(description: string): UserConstraints["spacing"]["d
   return "normal";
 }
 
+function extractBaseFontSize(description: string): number | null {
+  const patterns = [
+    /\b(?:base\s+)?font(?:\s+size)?\s*(?:of|at|to|=|is|around)?\s*(1[2-9]|2[0-4])(?:\s*px)?\b/i,
+    /\b(?:typography|text)\s+(?:base\s+)?size\s*(?:of|at|to|=|is|around)?\s*(1[2-9]|2[0-4])(?:\s*px)?\b/i,
+    /\b(1[2-9]|2[0-4])(?:\s*px)?\s*(?:base\s+)?font(?:\s+size)?\b/i,
+    /\b(1[2-9]|2[0-4])(?:\s*px)?\s+(?:typography|text)\s+size\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = pattern.exec(description);
+    if (!match) continue;
+
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return null;
+}
+
 function inferBaseFontSize(description: string): number {
+  const explicitSize = extractBaseFontSize(description);
+  if (explicitSize !== null) return explicitSize;
+
   if (/\bcompact\b/i.test(description) || /\bdense\b/i.test(description)) return 14;
   if (/\baccessible\b/i.test(description) || /\breadable\b/i.test(description) || /\beditorial\b/i.test(description)) {
     return 17;
@@ -167,7 +193,12 @@ export function resolveConstraintDraft(draft: ConstraintDraft): UserConstraints 
   const description = draft.themeDescription.trim();
   const palette = firstMatchingPalette(description);
   const hexColors = extractHexColors(description);
-  const inferredFontStyle = draft.typography.fontFamily?.style ?? inferFontStyle(description);
+  const explicitFontName =
+    trimOptional(draft.typography.fontFamily?.name) ?? extractFontFamilyFromText(description);
+  const inferredFontStyle =
+    draft.typography.fontFamily?.style ??
+    inferFontStyleFromFamily(explicitFontName) ??
+    inferFontStyle(description);
 
   const primary =
     trimOptional(draft.brand.primary) ??
@@ -196,7 +227,7 @@ export function resolveConstraintDraft(draft: ConstraintDraft): UserConstraints 
       scalePreset: draft.typography.scalePreset ?? inferScalePreset(description),
       fontFamily: {
         style: inferredFontStyle,
-        name: trimOptional(draft.typography.fontFamily?.name) ?? defaultGoogleFontForStyle(inferredFontStyle),
+        name: explicitFontName ?? defaultGoogleFontForStyle(inferredFontStyle),
       },
     },
     spacing: {

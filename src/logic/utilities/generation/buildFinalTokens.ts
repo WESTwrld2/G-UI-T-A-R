@@ -2,6 +2,7 @@ import { contrastThreshold } from "@/logic/constraints/systemSpec";
 import {
   defaultGoogleFontForStyle,
   normalizeGoogleFontFamily,
+  normalizePreferredFontFamily,
   type FontStyle,
 } from "@/logic/llm/googleFonts";
 import type { GenerationSourceItem } from "@/logic/schema/generationReport.types";
@@ -140,12 +141,12 @@ function isMonochromeNeutral(neutral: {
 function resolveFontFamily(rawFontFamily: unknown, userConstraints: UserConstraints): FontResolution {
   const style = (userConstraints.typography.fontFamily?.style ?? "sans-serif") as FontStyle;
   const googleFallback = defaultGoogleFontForStyle(style);
-  const userName = normalizeGoogleFontFamily(userConstraints.typography.fontFamily?.name, style);
+  const userName = normalizePreferredFontFamily(userConstraints.typography.fontFamily?.name);
   if (userName) {
     return {
       fontFamily: userName,
       source: "user",
-      detail: "Using the explicit user-provided Google Fonts family.",
+      detail: "Using the explicit user-provided font family.",
     };
   }
 
