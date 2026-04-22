@@ -32,6 +32,45 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
+const defaultTheme: ThemeData = {
+  cssVars: {
+    "--color-neutral-background": "white",
+    "--color-neutral-text-primary": "black",
+    "--color-neutral-border": "black",
+  },
+  tokens: {
+    colors: {
+      brand: {
+        primary: "#000000",
+        secondary: "#000000",
+        onPrimary: "#ffffff",
+        onSecondary: "#ffffff",
+      },
+      neutral: {
+        background: "#ffffff",
+        surface: "#ffffff",
+        textPrimary: "#000000",
+        textSecondary: "#000000",
+        border: "#000000",
+        tint: "neutral",
+      },
+    },
+    typography: {
+      fontFamily: "Arial",
+      baseFontSize: 16,
+      scaleRatio: 1.2,
+    },
+    spacing: {
+      baseUnit: 4,
+    },
+    meta: {
+      generatedBy: "default",
+      method: "default",
+      timestamp: new Date().toISOString(),
+    },
+  },
+};
+
 function applyCSS(vars: Record<string, string>) {
   const root = document.documentElement;
   Object.entries(vars).forEach(([key, value]) => {
@@ -43,9 +82,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [theme, setTheme] = useState<ThemeData | null>(() => {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") return defaultTheme;
     const stored = localStorage.getItem("previewData");
-    return stored ? JSON.parse(stored) : null;
+    return stored ? JSON.parse(stored) : defaultTheme;
   });
 
   // whenever theme changes, persist and apply CSS vars
